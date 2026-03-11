@@ -171,8 +171,21 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
     { type: 'CROSSWORD', label: 'תשבץ', icon: Plus, color: 'bg-indigo-500' },
   ];
 
+  if (activeGame) {
+    return (
+      <GameRunner
+        game={activeGame}
+        onFinish={(score, timeSeconds) => {
+          saveGameResult(activeGame, score, timeSeconds);
+          setActiveGame(null);
+        }}
+        onCancel={() => setActiveGame(null)}
+      />
+    );
+  }
+
   return (
-    <div className={`${activeGame ? 'w-full h-full' : 'max-w-7xl mx-auto p-4 md:p-8 animate-fade-in'} text-right`} dir="rtl">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 animate-fade-in text-right" dir="rtl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
         <div className="flex-1">
           <div className="bg-indigo-100 w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-indigo-600 shadow-xl mb-6">
@@ -182,30 +195,26 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
           <p className="text-xl text-gray-500 font-medium">למדו בכיף עם מגוון משחקים אינטראקטיביים</p>
         </div>
         <div className="flex flex-col items-end gap-4">
-          <button 
+          <button
             onClick={() => {
               setBackClicked(true);
-              if (activeGame) {
-                setActiveGame(null);
-              } else {
-                onBack();
-              }
-            }} 
+              onBack();
+            }}
             className={`p-4 rounded-3xl border shadow-sm transition-all group ${backClicked ? 'bg-red-500 text-white border-red-600' : 'bg-white hover:bg-gray-50 border-gray-100 text-gray-900'}`}
           >
             <ArrowRight size={24} className="group-hover:-translate-x-1 transition-transform rotate-180" />
           </button>
-          
+
           <div className="bg-white p-1 rounded-2xl shadow-sm border border-gray-100 flex">
-            <button 
-              onClick={() => setView('SELECT_TYPE')} 
+            <button
+              onClick={() => setView('SELECT_TYPE')}
               className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${view === 'SELECT_TYPE' || view === 'SELECT_TOPIC' ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               <Plus size={16} />
               <span>משחק חדש</span>
             </button>
-            <button 
-              onClick={() => setView('HISTORY')} 
+            <button
+              onClick={() => setView('HISTORY')}
               className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${view === 'HISTORY' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               <HistoryIcon size={16} />
@@ -215,16 +224,7 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
         </div>
       </div>
 
-      {activeGame ? (
-        <GameRunner 
-          game={activeGame} 
-          onFinish={(score) => {
-            saveGameResult(activeGame, score);
-            setActiveGame(null);
-          }} 
-          onCancel={() => setActiveGame(null)}
-        />
-      ) : view === 'SELECT_TYPE' ? (
+      {view === 'SELECT_TYPE' ? (
         <div className="space-y-12">
           <div className="text-center space-y-4">
             <h3 className="text-3xl font-black text-gray-900">בחר סוג משחק</h3>
@@ -347,7 +347,7 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
       )}
 
       {/* Recommended Games Section */}
-      {!activeGame && recommendedGames.length > 0 && (
+      {recommendedGames.length > 0 && (
         <div className="mt-20 space-y-8">
           <div className="flex items-center gap-4">
             <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
@@ -550,10 +550,8 @@ export const GameRunner: React.FC<{ game: LearningGame; onFinish: (score: number
           )}
         </div>
       </div>
-      <div className="flex-1 flex flex-col items-center justify-center overflow-hidden relative">
-        <div className="w-full h-full flex flex-col items-center justify-center">
-          {renderGame()}
-        </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {renderGame()}
       </div>
     </div>
   );
@@ -596,7 +594,7 @@ const MatchingGame: React.FC<{ content: any[]; onFinish: (score: number) => void
                 setSelectedLeft(idx);
                 if (selectedRight !== null) handleMatch(idx, selectedRight);
               }}
-              className={`flex-1 w-full p-4 rounded-2xl font-black text-lg md:text-3xl transition-all border-4 ${matches.some(m => m[0] === idx) ? 'bg-green-50 border-green-200 text-green-300' : selectedLeft === idx ? 'bg-primary border-primary text-white shadow-lg scale-[1.02]' : 'bg-white border-gray-100 hover:border-primary/30'}`}
+              className={`flex-1 w-full p-3 rounded-2xl font-black text-sm md:text-lg transition-all border-2 ${matches.some(m => m[0] === idx) ? 'bg-green-50 border-green-200 text-green-300' : selectedLeft === idx ? 'bg-primary border-primary text-white shadow-lg scale-[1.02]' : 'bg-white border-gray-100 hover:border-primary/30'}`}
             >
               {item.text}
             </button>
@@ -614,7 +612,7 @@ const MatchingGame: React.FC<{ content: any[]; onFinish: (score: number) => void
                 setSelectedRight(idx);
                 if (selectedLeft !== null) handleMatch(selectedLeft, idx);
               }}
-              className={`flex-1 w-full p-4 rounded-2xl font-black text-lg md:text-3xl transition-all border-4 ${matches.some(m => m[1] === idx) ? 'bg-green-50 border-green-200 text-green-300' : selectedRight === idx ? 'bg-primary border-primary text-white shadow-lg scale-[1.02]' : 'bg-white border-gray-100 hover:border-primary/30'}`}
+              className={`flex-1 w-full p-3 rounded-2xl font-black text-sm md:text-lg transition-all border-2 ${matches.some(m => m[1] === idx) ? 'bg-green-50 border-green-200 text-green-300' : selectedRight === idx ? 'bg-primary border-primary text-white shadow-lg scale-[1.02]' : 'bg-white border-gray-100 hover:border-primary/30'}`}
             >
               {item.match}
             </button>
@@ -739,12 +737,12 @@ const TriviaGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
   const q = content[currentIdx];
 
   return (
-    <div className="w-full h-full bg-slate-900 p-2 md:p-4 flex flex-col relative overflow-hidden">
+    <div className="w-full h-full bg-slate-900 p-2 md:p-4 flex flex-col relative overflow-auto">
       {/* TV Scanlines effect */}
       <div className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
       
       <div className="relative z-20 flex-1 flex flex-col justify-center">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-4">
           <div className="bg-indigo-600/20 px-6 py-2 rounded-full border border-indigo-500/30">
             <span className="text-indigo-400 font-black text-xs uppercase tracking-widest">שאלה {currentIdx + 1} / {content.length}</span>
           </div>
@@ -753,26 +751,26 @@ const TriviaGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
           </div>
         </div>
 
-        <div className="text-center mb-12">
-          <h3 className="text-4xl md:text-7xl font-black text-white leading-tight drop-shadow-[0_0_20px_rgba(99,102,241,0.6)]">
+        <div className="text-center mb-6 md:mb-10">
+          <h3 className="text-2xl md:text-4xl font-black text-white leading-tight drop-shadow-[0_0_20px_rgba(99,102,241,0.6)]">
             <LatexRenderer text={q.question} />
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {q.options.map((opt: string, idx: number) => (
-            <button 
+            <button
               key={idx}
               onClick={() => handleAnswer(idx)}
-              className={`p-8 md:p-14 rounded-[3rem] font-black text-2xl md:text-5xl transition-all border-8 text-right flex items-center gap-10 group
-                ${selected === idx 
-                  ? (isCorrect ? 'bg-green-500 border-green-400 text-white shadow-[0_0_50px_rgba(34,197,94,0.7)] scale-105' : 'bg-red-500 border-red-400 text-white shadow-[0_0_50px_rgba(239,68,68,0.7)] scale-95') 
-                  : selected !== null && idx === q.correct 
-                    ? 'bg-green-500/20 border-green-500 text-green-400' 
+              className={`p-4 md:p-8 rounded-2xl font-black text-base md:text-2xl transition-all border-4 text-right flex items-center gap-4 group
+                ${selected === idx
+                  ? (isCorrect ? 'bg-green-500 border-green-400 text-white shadow-[0_0_50px_rgba(34,197,94,0.7)] scale-105' : 'bg-red-500 border-red-400 text-white shadow-[0_0_50px_rgba(239,68,68,0.7)] scale-95')
+                  : selected !== null && idx === q.correct
+                    ? 'bg-green-500/20 border-green-500 text-green-400'
                     : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-indigo-500 hover:bg-slate-700 hover:text-white hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] hover:scale-[1.02]'
                 }`}
             >
-              <div className={`w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center shrink-0 font-black text-3xl md:text-5xl
+              <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center shrink-0 font-black text-lg md:text-2xl
                 ${selected === idx ? 'bg-white/20' : 'bg-slate-700 group-hover:bg-indigo-600'}`}>
                 {String.fromCharCode(65 + idx)}
               </div>
@@ -854,7 +852,7 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
     <div className="flex flex-col items-center w-full h-full p-2 justify-center">
       {!showQuestion ? (
         <>
-          <div className="relative w-[70vmin] h-[70vmin] mb-8 md:mb-12">
+          <div className="relative w-[55vmin] h-[55vmin] mb-6 md:mb-8">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-6 z-20">
               <div className="w-8 h-10 bg-gray-900 clip-path-needle shadow-lg"></div>
               <style>{`.clip-path-needle { clip-path: polygon(50% 100%, 0 0, 100% 0); }`}</style>
@@ -905,48 +903,48 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
           <button 
             onClick={spin}
             disabled={spinning}
-            className="group relative bg-gray-900 text-white px-20 py-8 rounded-[2.5rem] font-black text-4xl shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 overflow-hidden"
+            className="group relative bg-gray-900 text-white px-10 py-5 rounded-[2rem] font-black text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <span className="relative z-10">{spinning ? 'מסתובב...' : 'סובב את הגלגל!'}</span>
           </button>
         </>
       ) : (
-        <div className="w-full h-full bg-white p-6 md:p-12 rounded-[3rem] shadow-2xl border border-indigo-100 flex flex-col justify-center space-y-8 animate-fade-in">
+        <div className="w-full h-full bg-white p-4 md:p-8 rounded-[2rem] shadow-2xl border border-indigo-100 flex flex-col justify-center space-y-4 animate-fade-in overflow-y-auto">
           <div className="text-center">
-            <div className="inline-block bg-indigo-100 text-indigo-600 px-10 py-4 rounded-full font-black text-xl mb-8">השאלה שלך:</div>
-            <h3 className="text-5xl md:text-8xl font-black text-gray-900 leading-tight">
+            <div className="inline-block bg-indigo-100 text-indigo-600 px-6 py-2 rounded-full font-black text-base mb-4">השאלה שלך:</div>
+            <h3 className="text-2xl md:text-4xl font-black text-gray-900 leading-tight">
               <LatexRenderer text={result!} />
             </h3>
           </div>
 
-          <div className="space-y-8 flex-1 flex flex-col">
-            <textarea 
+          <div className="space-y-4 flex flex-col">
+            <textarea
               value={studentAnswer}
               onChange={e => setStudentAnswer(e.target.value)}
               placeholder="כתוב את תשובתך כאן..."
-              className="w-full flex-1 p-10 bg-gray-50 border-8 border-gray-100 rounded-[3rem] font-bold text-3xl md:text-5xl outline-none focus:border-primary transition-all min-h-[250px]"
+              className="w-full p-4 md:p-6 bg-gray-50 border-4 border-gray-100 rounded-2xl font-bold text-base md:text-xl outline-none focus:border-primary transition-all min-h-[120px]"
             />
             
             {!feedback ? (
               <button 
                 onClick={handleCheckAnswer}
                 disabled={!studentAnswer.trim() || isChecking}
-                className="w-full py-6 bg-primary text-white rounded-3xl font-black text-2xl hover:bg-blue-700 transition-all shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50"
+                className="w-full py-3 bg-primary text-white rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50"
               >
-                {isChecking ? <RotateCcw className="animate-spin" size={32} /> : <Sparkles size={32} />}
+                {isChecking ? <RotateCcw className="animate-spin" size={20} /> : <Sparkles size={20} />}
                 <span>{isChecking ? 'בודק תשובה...' : 'בדוק את התשובה שלי'}</span>
               </button>
             ) : (
-              <div className="space-y-8 animate-fade-in">
-                <div className={`p-8 rounded-3xl border-4 ${feedback.score >= 80 ? 'bg-green-50 border-green-200' : feedback.score >= 60 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <Trophy className={feedback.score >= 80 ? 'text-green-500' : 'text-amber-500'} size={32} />
-                      <span className="font-black text-gray-900 text-3xl">ציון: {feedback.score}</span>
+              <div className="space-y-4 animate-fade-in">
+                <div className={`p-4 rounded-2xl border-2 ${feedback.score >= 80 ? 'bg-green-50 border-green-200' : feedback.score >= 60 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Trophy className={feedback.score >= 80 ? 'text-green-500' : 'text-amber-500'} size={24} />
+                      <span className="font-black text-gray-900 text-xl">ציון: {feedback.score}</span>
                     </div>
                   </div>
-                  <p className="text-gray-700 font-bold text-xl leading-relaxed">
+                  <p className="text-gray-700 font-bold text-sm leading-relaxed">
                     <LatexRenderer text={feedback.feedback} />
                   </p>
                 </div>
@@ -1020,13 +1018,13 @@ const HangmanGame: React.FC<{ content: any[]; onFinish: (score: number) => void 
     <div className="w-full h-full flex flex-col items-center justify-center p-2 gap-4 md:gap-8">
       <div className="text-center space-y-2">
         <span className="text-sm font-black text-gray-400 uppercase tracking-widest">מילה {currentIdx + 1} מתוך {content.length}</span>
-        <h4 className="text-3xl md:text-6xl font-black text-indigo-600">רמז: {currentItem.hint}</h4>
+        <h4 className="text-xl md:text-3xl font-black text-indigo-600">רמז: {currentItem.hint}</h4>
       </div>
 
       <div className="flex flex-col items-center gap-8">
-        <div className="text-6xl md:text-9xl font-black tracking-[0.5em] text-gray-900 flex gap-6">
+        <div className="text-3xl md:text-5xl font-black tracking-[0.3em] text-gray-900 flex gap-3 flex-wrap justify-center">
           {word.split("").map((l, i) => (
-            <span key={i} className="border-b-8 border-gray-200 min-w-[3rem] text-center">
+            <span key={i} className="border-b-4 border-gray-200 min-w-[2rem] text-center">
               {guessedLetters.includes(l) || l === " " ? l : ""}
             </span>
           ))}
@@ -1043,7 +1041,7 @@ const HangmanGame: React.FC<{ content: any[]; onFinish: (score: number) => void 
             key={l}
             onClick={() => handleGuess(l)}
             disabled={guessedLetters.includes(l) || isWin || isLoss}
-            className={`w-12 h-12 md:w-20 md:h-20 rounded-2xl font-black text-2xl md:text-4xl transition-all ${guessedLetters.includes(l) ? (word.includes(l) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-400') : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-600 shadow-xl scale-105'}`}
+            className={`w-10 h-10 md:w-14 md:h-14 rounded-xl font-black text-lg md:text-2xl transition-all ${guessedLetters.includes(l) ? (word.includes(l) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-400') : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-600 shadow-md'}`}
           >
             {l}
           </button>
@@ -1182,20 +1180,20 @@ const CrosswordGame: React.FC<{ content: any[]; onFinish: (score: number) => voi
   };
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-8 items-start p-4">
+    <div className="w-full h-full flex flex-col md:flex-row gap-4 items-start p-3 overflow-auto">
       {/* Clues Section */}
-      <div className="w-full md:w-1/4 space-y-4">
-        <div className="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-2xl">
-          <h4 className="text-2xl font-black mb-4 flex items-center gap-3">
-            <HelpCircle size={28} />
+      <div className="w-full md:w-1/4 space-y-3">
+        <div className="bg-indigo-600 text-white p-4 rounded-2xl shadow-xl">
+          <h4 className="text-lg font-black mb-3 flex items-center gap-2">
+            <HelpCircle size={20} />
             <span>הגדרות</span>
           </h4>
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-3 custom-scrollbar">
+          <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
             {content.map((item, idx) => (
-              <div key={idx} className="bg-white/10 p-3 rounded-xl border border-white/20">
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="w-6 h-6 bg-white text-indigo-600 rounded-full flex items-center justify-center text-xs font-black">{idx + 1}</span>
-                  <span className="font-bold text-sm">{item.clue}</span>
+              <div key={idx} className="bg-white/10 p-2 rounded-xl border border-white/20">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 bg-white text-indigo-600 rounded-full flex items-center justify-center text-xs font-black shrink-0">{idx + 1}</span>
+                  <span className="font-bold text-xs">{item.clue}</span>
                 </div>
               </div>
             ))}
@@ -1204,17 +1202,17 @@ const CrosswordGame: React.FC<{ content: any[]; onFinish: (score: number) => voi
       </div>
 
       {/* Grid Section */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center gap-8">
-        <div className="bg-white p-4 md:p-12 rounded-[3rem] shadow-2xl border-8 border-gray-50 w-full">
-          <div className="grid gap-6 md:gap-10">
+      <div className="flex-1 w-full flex flex-col items-center justify-start gap-4">
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-xl border-4 border-gray-50 w-full">
+          <div className="grid gap-4 md:gap-6">
             {content.map((item, idx) => (
-              <div key={idx} className="flex flex-col gap-4">
-                <div className="flex items-center gap-6">
-                  <span className="text-indigo-600 font-black text-4xl w-12">{idx + 1}.</span>
-                  <div className="flex gap-3 flex-wrap">
+              <div key={idx} className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-indigo-600 font-black text-xl w-8">{idx + 1}.</span>
+                  <div className="flex gap-2 flex-wrap">
                     {item.answer.split('').map((_: string, charIdx: number) => (
                       <div key={charIdx} className="relative group">
-                        <input 
+                        <input
                           maxLength={1}
                           value={answers[idx][charIdx] || ''}
                           onChange={(e) => {
@@ -1224,7 +1222,7 @@ const CrosswordGame: React.FC<{ content: any[]; onFinish: (score: number) => voi
                             current[charIdx] = val;
                             newAns[idx] = current.join('');
                             setAnswers(newAns);
-                            
+
                             // Auto-focus next input
                             if (val && e.target.nextSibling) {
                               (e.target.nextSibling as HTMLInputElement).focus();
@@ -1235,7 +1233,7 @@ const CrosswordGame: React.FC<{ content: any[]; onFinish: (score: number) => voi
                               ((e.target as HTMLInputElement).previousSibling as HTMLInputElement).focus();
                             }
                           }}
-                          className={`w-12 h-12 md:w-20 md:h-20 border-4 md:border-8 rounded-2xl text-center font-black text-2xl md:text-5xl outline-none transition-all
+                          className={`w-10 h-10 md:w-14 md:h-14 border-2 md:border-4 rounded-xl text-center font-black text-lg md:text-2xl outline-none transition-all
                             ${answers[idx][charIdx] ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-gray-50 hover:border-indigo-300'}`}
                         />
                       </div>
@@ -1247,10 +1245,10 @@ const CrosswordGame: React.FC<{ content: any[]; onFinish: (score: number) => voi
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-4">
-          <button 
+        <div className="flex flex-col items-center gap-3">
+          <button
             onClick={handleCheckAnswer}
-            className="px-16 py-5 bg-primary text-white rounded-[2rem] font-black text-3xl shadow-2xl hover:bg-blue-700 transition-all transform hover:-translate-y-1"
+            className="px-10 py-3 bg-primary text-white rounded-2xl font-black text-xl shadow-xl hover:bg-blue-700 transition-all transform hover:-translate-y-1"
           >
             בדוק את התשובות שלי
           </button>
