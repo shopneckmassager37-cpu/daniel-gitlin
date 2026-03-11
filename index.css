@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@200;300;400;500;600;700;800&family=Heebo:wght@100;300;400;500;700;800;900&family=Rubik:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Assistant", "Rubik", ui-sans-serif, system-ui, sans-serif;
+  --font-assistant: "Assistant", sans-serif;
+  --font-david: "David Libre", serif;
+  --font-heebo: "Heebo", sans-serif;
+  --font-alef: "Alef", sans-serif;
+  --font-varela: "Varela Round", sans-serif;
+  --font-rubik: "Rubik", sans-serif;
+
+  --color-primary: #3B82F6;
+  --color-secondary: #10B981;
+  --color-accent: #8B5CF6;
+  --color-darkbg: #0f172a;
+  --color-darkcard: #1e293b;
+}
+
+/* Lumdim Global Styles */
+
+:root {
+  --primary: #3B82F6;
+  --secondary: #10B981;
+  --accent: #8B5CF6;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-sans);
+}
+
+/* Custom Table Styles for Markdown Content */
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdown-content th, .markdown-content td {
+  padding: 1rem;
+  border: 1px solid #f3f4f6;
+}
+
+.markdown-content thead {
+  background-color: #f9fafb;
+}
+
+button, [role="button"], .cursor-pointer {
+  cursor: pointer !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); opacity: 1; }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
