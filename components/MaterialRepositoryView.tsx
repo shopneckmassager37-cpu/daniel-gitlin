@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { HistoryItem, Subject } from '../types.ts';
 import { Trash2, FolderOpen, ArrowRight, ChevronLeft, FileText, ClipboardCheck, Sparkles, LayoutTemplate, Clock, Search, BookOpen, GraduationCap, Plus } from 'lucide-react';
 import LatexRenderer from './LatexRenderer.tsx';
+import ContentPreviewModal from './ContentPreviewModal.tsx';
 
 interface MaterialRepositoryViewProps {
   history: HistoryItem[];
@@ -15,6 +16,7 @@ interface MaterialRepositoryViewProps {
 const MaterialRepositoryView: React.FC<MaterialRepositoryViewProps> = ({ history, onBack, onOpenItem, onCreateNew, onDeleteItem }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<Subject | 'ALL'>('ALL');
+  const [previewItem, setPreviewItem] = useState<HistoryItem | null>(null);
 
   const filteredHistory = useMemo(() => {
     const baseSubjects = [
@@ -160,13 +162,13 @@ const MaterialRepositoryView: React.FC<MaterialRepositoryViewProps> = ({ history
                        </div>
                     </div>
                     
-                    <button 
-                      onClick={() => onOpenItem(item)}
+                    <button
+                      onClick={() => setPreviewItem(item)}
                       className="flex-1 text-right"
                     >
                       <h4 className="text-lg md:text-xl font-black text-gray-800 mb-2 md:mb-3 group-hover:text-primary transition-colors line-clamp-2">{item.title}</h4>
                     </button>
-                    
+
                     <div className="mt-auto pt-4 md:pt-6 border-t border-gray-50 flex items-center justify-between text-[10px] md:text-xs font-bold text-gray-400">
                        <div className="flex items-center gap-3 md:gap-4">
                          <div className="flex items-center gap-1">
@@ -178,8 +180,8 @@ const MaterialRepositoryView: React.FC<MaterialRepositoryViewProps> = ({ history
                             <span>{item.grade}</span>
                          </div>
                        </div>
-                       <button 
-                         onClick={() => onOpenItem(item)}
+                       <button
+                         onClick={() => setPreviewItem(item)}
                          className="flex items-center gap-1 text-primary opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity"
                        >
                          <span>צפייה</span>
@@ -192,6 +194,17 @@ const MaterialRepositoryView: React.FC<MaterialRepositoryViewProps> = ({ history
             </section>
           ))}
         </div>
+      )}
+
+      {previewItem && (
+        <ContentPreviewModal
+          item={previewItem}
+          onClose={() => setPreviewItem(null)}
+          onOpenForEditing={(item) => {
+            setPreviewItem(null);
+            onOpenItem(item);
+          }}
+        />
       )}
     </div>
   );
