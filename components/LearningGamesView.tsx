@@ -662,11 +662,11 @@ const MemoryGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
 
   return (
     <div className="w-full h-full flex flex-col p-4">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div className="bg-indigo-50 px-6 py-2 rounded-full text-indigo-600 font-black text-sm">מהלכים: {moves}</div>
         <div className="bg-green-50 px-6 py-2 rounded-full text-green-600 font-black text-sm">זוגות: {matched.length / 2} / {content.length}</div>
       </div>
-      
+
       {showMatchMessage && (
         <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-green-500 text-white px-10 py-5 rounded-3xl font-black text-3xl shadow-2xl animate-bounce">
@@ -675,18 +675,18 @@ const MemoryGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 flex-1 items-stretch">
+      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 flex-1" style={{gridAutoRows: '1fr'}}>
         {cards.map((card, idx) => {
           const isMatched = matched.includes(idx);
           const isFlipped = flipped.includes(idx);
           
-          if (isMatched) return <div key={idx} className="aspect-square opacity-0" />;
+          if (isMatched) return <div key={idx} className="opacity-0" />;
 
           return (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               onClick={() => handleFlip(idx)}
-              className={`aspect-square rounded-3xl flex items-center justify-center text-center p-6 cursor-pointer transition-all duration-500 preserve-3d shadow-2xl ${isFlipped ? 'bg-white border-8 border-indigo-500 scale-105' : 'bg-indigo-600 text-white hover:scale-105 active:scale-95'}`}
+              className={`w-full h-full rounded-3xl flex items-center justify-center text-center p-4 cursor-pointer transition-all duration-500 preserve-3d shadow-2xl ${isFlipped ? 'bg-white border-8 border-indigo-500 scale-105' : 'bg-indigo-600 text-white hover:scale-105 active:scale-95'}`}
             >
               {isFlipped ? (
                 <span className="font-black text-indigo-900 text-lg md:text-3xl">{card.text}</span>
