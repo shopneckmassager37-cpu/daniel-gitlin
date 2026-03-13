@@ -1072,15 +1072,6 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                  onClick={async () => {
                    if (!draftMaterial.title) return;
                    
-                   // Get current block context
-                   const activePage = draftMaterial.pages?.[activePageIndexForBlock];
-                   const activeBlock = activePage?.blocks?.[activeBlockIndex ?? 0];
-                   
-                   if (!activeBlock) {
-                     alert("אנא בחר בלוק תוכן כדי לייצר תוכן.");
-                     return;
-                   }
-
                    // Check AI limit
                    if (checkAndIncrementAiLimit && !checkAndIncrementAiLimit('PRACTICE')) {
                      alert("הגעת למכסת 10 בקשות ה-AI היומיות שלך בתוכנית החינמית. שדרג לפרו כדי להמשיך ללא הגבלה!");
