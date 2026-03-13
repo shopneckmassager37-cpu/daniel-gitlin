@@ -13,7 +13,7 @@ const Footer: React.FC<FooterProps> = ({ onShowPrivacy, onShowTerms }) => {
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-2 text-gray-400 font-bold text-sm">
           <Mail size={16} className="text-primary" />
-          <span>ליצירת קשר:</span>
+          <span>יצירת קשר:</span>
           <a href="mailto:info@lumdim.app" className="hover:text-primary transition-colors">info@lumdim.app</a>
         </div>
         
