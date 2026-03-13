@@ -431,7 +431,7 @@ const TestPrepView: React.FC<TestPrepViewProps> = ({
                             )}
                           </div>
                         ) : (
-                          <div className="grid gap-4">
+                          <div className="grid gap-6">
                             {day.quiz[currentIndex].options.map((option, idx) => {
                               let btnClass = "border-2 border-gray-200 hover:bg-gray-50";
                               const isSelected = quizAnswers[currentIndex] === idx;
@@ -454,7 +454,7 @@ const TestPrepView: React.FC<TestPrepViewProps> = ({
                                     {idx + 1}
                                   </div>
                                   <div className="flex-1">
-                                    <LatexRenderer text={option} />
+                                    <LatexRenderer text={option} inline />
                                   </div>
                                 </button>
                               );
@@ -606,7 +606,7 @@ const TestPrepView: React.FC<TestPrepViewProps> = ({
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-fade-in pb-20">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-20">
       <div className="bg-white rounded-[3rem] p-12 md:p-16 shadow-2xl border border-gray-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-[4rem] -z-0"></div>
         <div className="relative z-10">

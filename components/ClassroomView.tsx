@@ -6,7 +6,7 @@ import { Classroom, ClassroomMaterial, Subject, Grade, User, Question, MaterialT
 import { generateSummary, generateAssignment, generateQuestions, generateClassroomAnalytics, getStudyTopics, generateStudentAnalytics, detectSubjectAI, gradeOpenQuestion, generateExamFeedback } from '../services/geminiService.ts';
 import { 
   School, Plus, Users, UserPlus, BookOpen, FileText, PlusCircle, ArrowRight, Loader2, Sparkles, 
-  Copy, Check, Trash2, X, ChevronLeft, Upload, FileDown, Info, Clock, Edit3, Send, ListChecks, ClipboardList, 
+  Copy, Check, Trash2, X, ChevronLeft, ChevronRight, Upload, FileDown, Info, Clock, Edit3, Send, ListChecks, ClipboardList, 
   BellRing, Bot, User as UserIcon, CheckCircle2, Trophy, MessageSquare, Save, Calendar, Paperclip, Maximize2, Minimize2,
   BarChart3, TrendingUp, Target, Star, ClipboardCheck, Library, Settings2, FolderArchive, ArrowLeft, MoreVertical,
   UserCheck, History, AlertCircle, Search as SearchIcon, RotateCcw, Mail, GraduationCap, BookmarkPlus, Zap, Gamepad2, Play, Link, Download
@@ -98,6 +98,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
   const [studentSubmissionText, setStudentSubmissionText] = useState('');
   const [studentSubmissionFile, setStudentSubmissionFile] = useState<{name: string, data: string, mimeType: string} | null>(null);
   const [studentQuizAnswers, setStudentQuizAnswers] = useState<Record<string, any>>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMySubmissionContent, setShowMySubmissionContent] = useState(false);
   const studentFileRef = useRef<HTMLInputElement>(null);
@@ -171,6 +172,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
       setActiveViewerPageIndex(0);
       setStudentQuizAnswers({});
       setRevealedAnswers({});
+      setCurrentQuestionIndex(0);
     }
   }, [activeMaterial?.id]);
 
@@ -784,7 +786,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
     return activeMaterial.submissions?.find(s => s.studentId === user.id);
   }, [activeMaterial, user.id]);
 
-  const handleGameFinish = async (score: number) => {
+  const handleGameFinish = async (score: number, time?: number) => {
     if (!activeMaterial || !activeClass || userSubmission) return;
     
     setIsSubmitting(true);
@@ -795,7 +797,8 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
         studentName: user.name,
         timestamp: Date.now(),
         aiScore: score,
-        aiFeedback: `כל הכבוד! סיימת את המשחק בציון ${score}.`,
+        timeSeconds: time,
+        aiFeedback: `כל הכבוד! סיימת את המשחק בציון ${score}${time ? ` תוך ${Math.floor(time/60)}:${(time%60).toString().padStart(2, '0')}` : ''}.`,
         attachment: { name: '', mimeType: '', data: '' }
       };
 
@@ -1065,7 +1068,14 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                             subject: activeMaterial.subject as Subject,
                             grade: activeMaterial.grade as Grade,
                             content: activeMaterial.gameContent,
-                            timestamp: activeMaterial.timestamp
+                            timestamp: activeMaterial.timestamp,
+                            leaderboardEnabled: activeMaterial.leaderboardVisibility !== 'NONE',
+                            scores: activeMaterial.submissions?.map(s => ({
+                              studentId: s.studentId,
+                              studentName: s.studentName,
+                              score: s.aiScore || 0,
+                              timestamp: s.timestamp
+                            })) || []
                           }}
                           onFinish={() => setIsPlayingGame(false)}
                           onCancel={() => setIsPlayingGame(false)}
@@ -1105,7 +1115,14 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                 subject: activeMaterial.subject as Subject,
                                 grade: activeMaterial.grade as Grade,
                                 content: activeMaterial.gameContent,
-                                timestamp: activeMaterial.timestamp
+                                timestamp: activeMaterial.timestamp,
+                                leaderboardEnabled: activeMaterial.leaderboardVisibility !== 'NONE',
+                                scores: activeMaterial.submissions?.map(s => ({
+                                  studentId: s.studentId,
+                                  studentName: s.studentName,
+                                  score: s.aiScore || 0,
+                                  timestamp: s.timestamp
+                                })) || []
                               }}
                               onFinish={(score) => {
                                 handleGameFinish(score);
@@ -1139,7 +1156,14 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                 subject: activeMaterial.subject as Subject,
                                 grade: activeMaterial.grade as Grade,
                                 content: activeMaterial.gameContent,
-                                timestamp: activeMaterial.timestamp
+                                timestamp: activeMaterial.timestamp,
+                                leaderboardEnabled: activeMaterial.leaderboardVisibility !== 'NONE',
+                                scores: activeMaterial.submissions?.map(s => ({
+                                  studentId: s.studentId,
+                                  studentName: s.studentName,
+                                  score: s.aiScore || 0,
+                                  timestamp: s.timestamp
+                                })) || []
                               }}
                               onFinish={() => setIsPlayingGame(false)}
                               onCancel={() => setIsPlayingGame(false)}
@@ -1254,12 +1278,35 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                 }
                                 if (block.type === 'UPCOMING_TEST') {
                                   return (
-                                    <div key={block.id} className="mb-8 p-6 bg-orange-50 rounded-3xl border border-orange-100 flex items-center gap-4">
-                                      <div className="bg-orange-100 p-4 rounded-full text-orange-600"><BellRing size={32}/></div>
-                                      <div>
-                                        <h3 className="text-xl font-black text-orange-900 mb-1">התראה על מבחן מתקרב</h3>
-                                        <p className="text-orange-700 font-bold">{block.content}</p>
+                                    <div key={block.id} className="mb-8 p-6 bg-orange-50 rounded-3xl border border-orange-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                                      <div className="flex items-center gap-4">
+                                        <div className="bg-orange-100 p-4 rounded-full text-orange-600"><BellRing size={32}/></div>
+                                        <div>
+                                          <h3 className="text-xl font-black text-orange-900 mb-1">התראה על מבחן מתקרב</h3>
+                                          <p className="text-orange-700 font-bold">{block.content}</p>
+                                        </div>
                                       </div>
+                                      <button 
+                                        onClick={() => {
+                                          const testDate = activeMaterial.dueDate ? new Date(activeMaterial.dueDate) : new Date();
+                                          const today = new Date();
+                                          let diffDays = Math.ceil((testDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                          if (diffDays < 1) diffDays = 1;
+                                          if (diffDays > 14) diffDays = 14;
+                                          
+                                          onStartTestPrep(
+                                            activeClass!.subject as Subject, 
+                                            activeClass!.grade as Grade, 
+                                            block.content || activeMaterial.title, 
+                                            diffDays, 
+                                            activeMaterial.teacherAttachments?.[0]
+                                          );
+                                        }}
+                                        className="bg-orange-500 text-white px-6 py-2 rounded-xl font-bold hover:bg-orange-600 transition-all flex items-center gap-2 text-sm"
+                                      >
+                                        <Zap size={16}/>
+                                        צור הכנה למבחן עם AI
+                                      </button>
                                     </div>
                                   );
                                 }
@@ -1298,78 +1345,96 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                 }
                                 if (block.type === 'TEST') {
                                   const questions = block.questions || [];
+                                  if (questions.length === 0) return null;
+                                  
+                                  const q = questions[currentQuestionIndex];
                                   return (
                                     <div key={block.id} className="mb-12 space-y-8 p-8 bg-green-50/30 rounded-[2.5rem] border border-green-100">
-                                      <div className="flex items-center gap-3 mb-4">
-                                        <div className="bg-green-100 p-2 rounded-xl text-green-600"><ListChecks size={24}/></div>
-                                        <h3 className="text-xl font-black text-green-900">שאלות תרגול</h3>
+                                      <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                          <div className="bg-green-100 p-2 rounded-xl text-green-600"><ListChecks size={24}/></div>
+                                          <h3 className="text-xl font-black text-green-900">שאלות תרגול ({currentQuestionIndex + 1} מתוך {questions.length})</h3>
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <button 
+                                            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                                            disabled={currentQuestionIndex === 0}
+                                            className="p-2 bg-white rounded-xl border border-gray-200 disabled:opacity-30"
+                                          >
+                                            <ChevronRight size={20}/>
+                                          </button>
+                                          <button 
+                                            onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                                            disabled={currentQuestionIndex === questions.length - 1}
+                                            className="p-2 bg-white rounded-xl border border-gray-200 disabled:opacity-30"
+                                          >
+                                            <ChevronLeft size={20}/>
+                                          </button>
+                                        </div>
                                       </div>
-                                      <div className="space-y-6">
-                                        {questions.map((q, qIdx) => (
-                                          <div key={q.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                            <div className="flex items-start gap-3 mb-4">
-                                              <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center font-black text-primary text-sm shrink-0">{qIdx + 1}</div>
-                                              <h4 className="font-bold text-gray-800 pt-1"><LatexRenderer text={q.text} /></h4>
-                                            </div>
-                                            {q.type === 'MCQ' ? (
-                                              <div className="grid gap-2">
-                                                {q.options.map((opt, oi) => {
-                                                  const isSelected = studentQuizAnswers[q.id] === oi;
-                                                  const isCorrect = oi === q.correctIndex;
-                                                  const isRevealed = revealedAnswers[q.id];
-                                                  return (
-                                                    <button 
-                                                      key={oi}
-                                                      onClick={() => {
-                                                        if (!isRevealed) {
-                                                          setStudentQuizAnswers(prev => ({...prev, [q.id]: oi}));
-                                                        }
-                                                      }}
-                                                      className={`w-full p-3 rounded-xl border-2 text-right transition-all flex items-center gap-3 ${
-                                                        isRevealed 
-                                                          ? (isCorrect ? 'border-green-500 bg-green-50 text-green-700' : (isSelected ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-50 opacity-50'))
-                                                          : (isSelected ? 'border-primary bg-blue-50 text-primary' : 'bg-gray-50 border-transparent hover:border-gray-200')
-                                                      }`}
-                                                    >
-                                                      <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${isSelected ? 'border-primary bg-primary' : 'border-gray-300'}`} />
-                                                      <LatexRenderer text={opt} />
-                                                    </button>
-                                                  );
-                                                })}
-                                              </div>
-                                            ) : (
-                                              <div className="space-y-3">
-                                                <textarea 
-                                                  value={studentQuizAnswers[q.id] || ''}
-                                                  onChange={e => setStudentQuizAnswers(prev => ({...prev, [q.id]: e.target.value}))}
-                                                  disabled={revealedAnswers[q.id]}
-                                                  placeholder="הקלד תשובה..."
-                                                  className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary outline-none font-medium text-sm transition-all"
-                                                  rows={3}
-                                                />
-                                              </div>
-                                            )}
-                                            
-                                            {revealedAnswers[q.id] ? (
-                                              <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100 animate-fade-in">
-                                                <div className="flex items-center gap-2 mb-2 text-blue-700 font-black text-xs">
-                                                  <Bot size={14}/> הסבר פתרון:
-                                                </div>
-                                                <div className="text-sm text-blue-800 leading-relaxed">
-                                                  {q.type === 'OPEN' && <div className="font-black mb-2">תשובת מודל: <LatexRenderer text={q.modelAnswer || ''} /></div>}
-                                                  <LatexRenderer text={q.explanation} />
-                                                </div>
-                                              </div>
-                                            ) : (
-                                              <button 
-                                                onClick={() => setRevealedAnswers(prev => ({...prev, [q.id]: true}))}
-                                                className="mt-4 w-full py-2 bg-primary/10 text-primary rounded-xl font-black text-xs hover:bg-primary hover:text-white transition-all"
-                                              >
-                                                בדוק תשובה
-                                              </button>
-                                            )}
+                                      
+                                      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm animate-fade-in">
+                                        <div className="flex items-start gap-3 mb-4">
+                                          <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center font-black text-primary text-sm shrink-0">{currentQuestionIndex + 1}</div>
+                                          <h4 className="font-bold text-gray-800 pt-1"><LatexRenderer text={q.text} /></h4>
+                                        </div>
+                                        {q.type === 'MCQ' ? (
+                                          <div className="grid gap-2">
+                                            {q.options.map((opt, oi) => {
+                                              const isSelected = studentQuizAnswers[q.id] === oi;
+                                              const isCorrect = oi === q.correctIndex;
+                                              const isRevealed = revealedAnswers[q.id];
+                                              return (
+                                                <button 
+                                                  key={oi}
+                                                  onClick={() => {
+                                                    if (!isRevealed) {
+                                                      setStudentQuizAnswers(prev => ({...prev, [q.id]: oi}));
+                                                    }
+                                                  }}
+                                                  className={`w-full p-3 rounded-xl border-2 text-right transition-all flex items-center gap-3 ${
+                                                    isRevealed 
+                                                      ? (isCorrect ? 'border-green-500 bg-green-50 text-green-700' : (isSelected ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-50 opacity-50'))
+                                                      : (isSelected ? 'border-primary bg-blue-50 text-primary' : 'bg-gray-50 border-transparent hover:border-gray-200')
+                                                  }`}
+                                                >
+                                                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${isSelected ? 'border-primary bg-primary' : 'border-gray-300'}`} />
+                                                  <LatexRenderer text={opt} inline />
+                                                </button>
+                                              );
+                                            })}
                                           </div>
-                                        ))}
+                                        ) : (
+                                          <div className="space-y-3">
+                                            <textarea 
+                                              value={studentQuizAnswers[q.id] || ''}
+                                              onChange={e => setStudentQuizAnswers(prev => ({...prev, [q.id]: e.target.value}))}
+                                              disabled={revealedAnswers[q.id]}
+                                              placeholder="הקלד תשובה..."
+                                              className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary outline-none font-medium text-sm transition-all"
+                                              rows={3}
+                                            />
+                                          </div>
+                                        )}
+                                        
+                                        {revealedAnswers[q.id] ? (
+                                          <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100 animate-fade-in">
+                                            <div className="flex items-center gap-2 mb-2 text-blue-700 font-black text-xs">
+                                              <Bot size={14}/> הסבר פתרון:
+                                            </div>
+                                            <div className="text-sm text-blue-800 leading-relaxed">
+                                              {q.type === 'OPEN' && <div className="font-black mb-2">תשובת מודל: <LatexRenderer text={q.modelAnswer || ''} /></div>}
+                                              <LatexRenderer text={q.explanation} />
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <button 
+                                            onClick={() => setRevealedAnswers(prev => ({...prev, [q.id]: true}))}
+                                            className="mt-4 w-full py-2 bg-primary/10 text-primary rounded-xl font-black text-xs hover:bg-primary hover:text-white transition-all"
+                                          >
+                                            בדוק תשובה
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
                                   );
@@ -1413,7 +1478,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                           }`}
                                         >
                                           <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${isSelected ? 'border-primary bg-primary' : 'border-gray-300'}`} />
-                                          <LatexRenderer text={opt} />
+                                          <LatexRenderer text={opt} inline />
                                         </button>
                                       );
                                     })}
@@ -1667,56 +1732,102 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                 <div className="space-y-8 animate-slide-up">
                                     {isTestType ? (
                                         <div className="space-y-10">
-                                            {activeMaterial.questions?.map((q, idx) => (
-                                                <div key={q.id} className="bg-gray-50 p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                                                    <div className="flex items-start gap-4 mb-6">
-                                                        <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-primary border border-gray-100">{idx+1}</div>
-                                                        <h4 className="text-xl font-black text-gray-800 pt-1"><LatexRenderer text={q.text} /></h4>
-                                                    </div>
-                                                    
-                                                    {q.type === 'MCQ' ? (
-                                                        <div className="grid gap-3">
-                                                            {q.options.map((opt, oi) => (
+                                            {(() => {
+                                                const questions = activeMaterial.questions || [];
+                                                if (questions.length === 0) return null;
+                                                const q = questions[currentQuestionIndex];
+                                                return (
+                                                    <div key={q.id} className="bg-gray-50 p-8 rounded-[2.5rem] border border-gray-100 shadow-sm animate-fade-in">
+                                                        <div className="flex items-center justify-between mb-6">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-primary border border-gray-100">{currentQuestionIndex + 1}</div>
+                                                                <h4 className="text-xl font-black text-gray-800 pt-1">שאלה {currentQuestionIndex + 1} מתוך {questions.length}</h4>
+                                                            </div>
+                                                            <div className="flex gap-2">
                                                                 <button 
-                                                                    key={oi} 
-                                                                    onClick={() => setStudentQuizAnswers(prev => ({...prev, [q.id]: oi}))}
-                                                                    className={`w-full p-4 rounded-2xl border-2 text-right transition-all flex items-center gap-4 ${studentQuizAnswers[q.id] === oi ? 'border-primary bg-blue-50 text-primary shadow-md' : 'bg-white border-gray-50 hover:border-gray-200'}`}
+                                                                    onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                                                                    disabled={currentQuestionIndex === 0}
+                                                                    className="p-3 bg-white rounded-2xl border border-gray-200 disabled:opacity-30 shadow-sm hover:bg-gray-50 transition-all"
                                                                 >
-                                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${studentQuizAnswers[q.id] === oi ? 'border-primary bg-primary text-white' : 'border-gray-200'}`}>
-                                                                        {studentQuizAnswers[q.id] === oi && <div className="w-2 h-2 bg-white rounded-full"/>}
-                                                                    </div>
-                                                                    <LatexRenderer text={opt} />
+                                                                    <ChevronRight size={24}/>
                                                                 </button>
-                                                            ))}
+                                                                <button 
+                                                                    onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                                                                    disabled={currentQuestionIndex === questions.length - 1}
+                                                                    className="p-3 bg-white rounded-2xl border border-gray-200 disabled:opacity-30 shadow-sm hover:bg-gray-50 transition-all"
+                                                                >
+                                                                    <ChevronLeft size={24}/>
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                    ) : (
-                                                        <RichEditor 
-                                                            value={studentQuizAnswers[q.id] || ''} 
-                                                            onChange={val => setStudentQuizAnswers(prev => ({...prev, [q.id]: val}))} 
-                                                            placeholder="הקלד את התשובה שלך כאן..." 
-                                                            minHeight="150px"
-                                                            minimalMode={false}
-                                                            hideInteractive={true}
-                                                            subject={activeMaterial.subject}
-                                                            stickyOffset="top-16"
-                                                        />
-                                                    )}
-                                                </div>
-                                            ))}
+
+                                                        <div className="mb-8">
+                                                            <h4 className="text-2xl font-black text-gray-800 mb-6"><LatexRenderer text={q.text} /></h4>
+                                                            
+                                                            {q.type === 'MCQ' ? (
+                                                                <div className="grid gap-3">
+                                                                    {q.options.map((opt, oi) => (
+                                                                        <button 
+                                                                            key={oi} 
+                                                                            onClick={() => setStudentQuizAnswers(prev => ({...prev, [q.id]: oi}))}
+                                                                            className={`w-full p-6 rounded-2xl border-2 text-right transition-all flex items-center gap-4 ${studentQuizAnswers[q.id] === oi ? 'border-primary bg-blue-50 text-primary shadow-md' : 'bg-white border-gray-50 hover:border-gray-200'}`}
+                                                                        >
+                                                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${studentQuizAnswers[q.id] === oi ? 'border-primary bg-primary text-white' : 'border-gray-200'}`}>
+                                                                                {studentQuizAnswers[q.id] === oi && <div className="w-2 h-2 bg-white rounded-full"/>}
+                                                                            </div>
+                                                                            <LatexRenderer text={opt} inline />
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <RichEditor 
+                                                                    value={studentQuizAnswers[q.id] || ''} 
+                                                                    onChange={val => setStudentQuizAnswers(prev => ({...prev, [q.id]: val}))} 
+                                                                    placeholder="הקלד את התשובה שלך כאן..." 
+                                                                    minHeight="250px"
+                                                                    minimalMode={false}
+                                                                    hideInteractive={true}
+                                                                    subject={activeMaterial.subject}
+                                                                    stickyOffset="top-16"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     ) : (
-                                        <div className="bg-white rounded-[2.5rem] border-2 border-gray-100 p-8 shadow-sm focus-within:border-primary transition-all">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4 pr-1">כתיבת תשובה ישירות כאן</label>
-                                            <RichEditor 
-                                                value={studentSubmissionText} 
-                                                onChange={setStudentSubmissionText} 
-                                                placeholder="הקלד כאן את הפתרון שלך למטלה..." 
-                                                minHeight="300px"
-                                                minimalMode={false}
-                                                hideInteractive={true}
-                                                subject={activeMaterial.subject}
-                                                stickyOffset="top-16"
-                                            />
+                                        <div className="space-y-6">
+                                            {studentSubmissionFile && (
+                                                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-center justify-between animate-slide-up">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><FileText size={20}/></div>
+                                                        <div>
+                                                            <div className="text-xs font-black text-blue-400 uppercase">קובץ מצורף</div>
+                                                            <div className="font-bold text-blue-800">{studentSubmissionFile.name}</div>
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => setStudentSubmissionFile(null)}
+                                                        className="p-2 hover:bg-blue-100 rounded-lg text-blue-400 transition-all"
+                                                    >
+                                                        <X size={20}/>
+                                                    </button>
+                                                </div>
+                                            )}
+                                            <div className="bg-white rounded-[2.5rem] border-2 border-gray-100 p-8 shadow-sm focus-within:border-primary transition-all">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4 pr-1">כתיבת תשובה ישירות כאן</label>
+                                                <RichEditor 
+                                                    value={studentSubmissionText} 
+                                                    onChange={setStudentSubmissionText} 
+                                                    placeholder="הקלד כאן את הפתרון שלך למטלה..." 
+                                                    minHeight="300px"
+                                                    minimalMode={false}
+                                                    hideInteractive={true}
+                                                    subject={activeMaterial.subject}
+                                                    stickyOffset="top-16"
+                                                />
+                                            </div>
                                         </div>
                                     )}
 

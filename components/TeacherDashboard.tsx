@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PresentationEditor from './PresentationEditor.tsx';
 import { 
   LayoutDashboard, BookCopy, Sparkles, Users, FileText, 
@@ -30,6 +31,7 @@ interface TeacherDashboardProps {
   onUpgrade: () => void;
   initialTeacherTab?: 'OVERVIEW' | 'PLANNER' | 'CHAT' | 'UPGRADE' | 'EXAM_CHECKER';
   initialLessonPlan?: LessonPlan | null;
+  initialHistoryId?: string | null;
   initialExamResult?: ExamCheckResult | null;
   initialGrade?: Grade | null;
   initialTopic?: string | null;
@@ -82,7 +84,7 @@ const InfographicViewer = ({ data }: { data: InfographicData }) => {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
           {data.keyPoints?.map((point, i) => (
             <div key={i} className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10 hover:bg-white/20 transition-all">
-              <div className="bg-blue-50 text-white w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+              <div className="bg-blue-100 text-blue-600 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
                 <InfographicIcon type={point.iconType} />
               </div>
               <h4 className="text-lg font-black mb-2">{point.title}</h4>
@@ -126,14 +128,7 @@ const PresentationViewer = ({ data, onEdit }: { data: PresentationData, onEdit?:
   };
 
   useEffect(() => {
-    const attemptFullscreen = () => {
-        try {
-            viewerRef.current?.requestFullscreen();
-        } catch (e) {
-            console.log("Fullscreen request failed, user interaction needed");
-        }
-    };
-    attemptFullscreen();
+    // Fullscreen request is now manual
   }, []);
 
   const handleSlideClick = () => {
@@ -230,6 +225,66 @@ const PresentationViewer = ({ data, onEdit }: { data: PresentationData, onEdit?:
                   <p className="text-2xl md:text-3xl font-black text-indigo-600">{slide.title}</p>
                </div>
             )}
+
+            {slide.layout === 'IMAGE_TEXT' && (
+               <div className="grid md:grid-cols-2 gap-20 items-center max-w-6xl mx-auto w-full">
+                  <div className="rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white">
+                    <img src={slide.imageUrl || 'https://picsum.photos/seed/edu/800/600'} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                  <div className="space-y-8">
+                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 leading-tight">{slide.title}</h2>
+                    <p className="text-2xl md:text-3xl text-gray-600 leading-relaxed font-medium">{slide.content?.[0]}</p>
+                  </div>
+               </div>
+            )}
+
+            {slide.layout === 'THREE_COLUMNS' && (
+              <div className="max-w-7xl mx-auto w-full">
+                <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-16 text-center">{slide.title}</h2>
+                <div className="grid md:grid-cols-3 gap-8">
+                  {slide.content?.map((item, i) => (
+                    <div key={i} className="bg-indigo-50 p-10 rounded-[2.5rem] border-2 border-indigo-100 shadow-lg">
+                       <div className="text-indigo-600 font-black text-6xl mb-6 opacity-20">0{i+1}</div>
+                       <p className="text-xl md:text-2xl text-gray-800 font-bold leading-relaxed">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {slide.layout === 'TIMELINE' && (
+              <div className="max-w-5xl mx-auto w-full">
+                <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-16 text-center">{slide.title}</h2>
+                <div className="relative pr-12">
+                  <div className="absolute top-0 bottom-0 right-4 w-2 bg-indigo-100 rounded-full" />
+                  <div className="space-y-12">
+                    {slide.content?.map((item, i) => (
+                      <div key={i} className="relative flex items-center gap-10">
+                        <div className="absolute -right-12 w-10 h-10 rounded-full bg-indigo-600 border-8 border-white shadow-lg z-10" />
+                        <div className="bg-white p-8 rounded-3xl shadow-md border border-gray-100 flex-1">
+                           <p className="text-2xl md:text-3xl text-gray-800 font-bold">{item}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {slide.layout === 'SUMMARY' && (
+              <div className="max-w-4xl mx-auto w-full bg-indigo-600 text-white p-16 rounded-[4rem] shadow-2xl relative overflow-hidden">
+                <div className="absolute -top-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-6 mb-12">
+                    <div className="bg-white/20 p-4 rounded-2xl"><FileSearch size={48} /></div>
+                    <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">{slide.title}</h2>
+                  </div>
+                  <div className="space-y-6 text-2xl md:text-4xl font-bold leading-tight text-indigo-50">
+                    {slide.content?.[0]}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-10 bg-gray-50 border-t-2 border-gray-100 flex justify-between items-center shrink-0 no-print">
@@ -265,7 +320,8 @@ const PresentationViewer = ({ data, onEdit }: { data: PresentationData, onEdit?:
   );
 };
 
-const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, history, checkAndIncrementAiLimit, onSelectClass, onOpenTool, onAddHistoryItem, onUpgrade, initialTeacherTab, initialLessonPlan, initialExamResult, initialGrade, initialTopic }) => {
+const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, history, checkAndIncrementAiLimit, onSelectClass, onOpenTool, onAddHistoryItem, onUpgrade, initialTeacherTab, initialLessonPlan, initialHistoryId, initialExamResult, initialGrade, initialTopic }) => {
+  const navigate = useNavigate();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'PLANNER' | 'CHAT' | 'UPGRADE' | 'EXAM_CHECKER'>(initialTeacherTab || 'OVERVIEW');
   
@@ -279,6 +335,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
   const [loadingStep, setLoadingStep] = useState(0);
   
   const [generatedPlan, setGeneratedPlan] = useState<LessonPlan | null>(null);
+  const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(initialHistoryId || null);
   const [infographicData, setInfographicData] = useState<InfographicData | null>(null);
   const [presentationData, setPresentationData] = useState<PresentationData | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -388,7 +445,18 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
     }
     if (initialLessonPlan) {
       setGeneratedPlan(initialLessonPlan);
-      setCurrentView('PLAN');
+      setInfographicData(initialLessonPlan.infographic || null);
+      setPresentationData(initialLessonPlan.presentation || null);
+      
+      // Determine initial view
+      if (initialLessonPlan.presentation && !initialLessonPlan.mainContent) {
+        setCurrentView('PRESENTATION');
+      } else if (initialLessonPlan.infographic && !initialLessonPlan.mainContent) {
+        setCurrentView('INFOGRAPHIC');
+      } else {
+        setCurrentView('PLAN');
+      }
+      
       if (initialTopic) setPlannerTopic(initialTopic);
       if (initialGrade) setPlannerGrade(initialGrade);
     }
@@ -459,19 +527,24 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
     setIsGenerating(true);
     setLoadingStep(0);
     try {
+      console.log("Generating lesson plan for:", plannerTopic);
       const plan = await generateLessonPlan(
         plannerTopic, 
         plannerGrade as any, 
         plannerInfo
       );
+      console.log("Lesson plan generated:", plan);
       setGeneratedPlan(plan);
       setInfographicData(null);
       setPresentationData(null);
       setCurrentView('PLAN');
 
       // Save lesson plan to repository
+      const historyId = currentHistoryId || `plan-${Date.now()}`;
+      setCurrentHistoryId(historyId);
+      
       onAddHistoryItem({
-        id: `plan-${Date.now()}`,
+        id: historyId,
         timestamp: Date.now(),
         subject: plan.subject,
         grade: plannerGrade,
@@ -482,6 +555,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
       });
 
     } catch (e) {
+      console.error("Error in handleGeneratePlanner:", e);
       alert("אירעה שגיאה בייצור המערך.");
     } finally {
       setIsGenerating(false);
@@ -489,23 +563,26 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
   };
 
   const handleCreateVisual = async (type: 'INFOGRAPHIC' | 'PRESENTATION') => {
-    if (!generatedPlan) return;
-    
-    if (type === 'PRESENTATION' && !isPro) {
-      window.location.href = '/upgrade'; // Or however the upgrade page is accessed
+    if (!generatedPlan) {
+      console.error("No generated plan found");
       return;
     }
-
+    
+    console.log("Generating visual:", type, "isPro:", isPro);
+    
     if (!checkAndIncrementAiLimit('PRACTICE')) {
+      console.log("AI limit reached");
       alert("הגעת למכסת הבקשות היומית שלך (10 בקשות). נסה שוב מחר!");
       return;
     }
 
     if (type === 'INFOGRAPHIC' && infographicData) {
+      console.log("Using cached infographic data");
       setCurrentView('INFOGRAPHIC');
       return;
     }
     if (type === 'PRESENTATION' && presentationData) {
+      console.log("Using cached presentation data");
       setCurrentView('PRESENTATION');
       return;
     }
@@ -513,15 +590,52 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
     setIsGeneratingVisual(true);
     setLoadingStep(0);
     try {
+      console.log("Calling generateLessonVisuals...");
       const visual = await generateLessonVisuals(generatedPlan, type);
+      console.log("Visual generated:", visual);
+      
+      let updatedPlan = { ...generatedPlan };
       if (type === 'INFOGRAPHIC') {
-        setInfographicData(visual);
-        setCurrentView('INFOGRAPHIC');
+        if (visual && visual.keyPoints) {
+          setInfographicData(visual);
+          updatedPlan.infographic = visual;
+          setCurrentView('INFOGRAPHIC');
+        } else {
+          console.error("Invalid infographic data:", visual);
+          alert("אירעה שגיאה ביצירת האינפוגרפיקה.");
+          return;
+        }
       } else {
-        setPresentationData(visual);
-        setCurrentView('PRESENTATION');
+        if (visual && visual.slides && visual.slides.length > 0) {
+          setPresentationData(visual);
+          updatedPlan.presentation = visual;
+          setCurrentView('PRESENTATION');
+        } else {
+          console.error("Invalid presentation data:", visual);
+          alert("אירעה שגיאה ביצירת המצגת.");
+          return;
+        }
       }
+
+      setGeneratedPlan(updatedPlan);
+      
+      // Update history with the plan including the new visual
+      const historyId = currentHistoryId || `plan-${Date.now()}`;
+      setCurrentHistoryId(historyId);
+
+      onAddHistoryItem({
+        id: historyId,
+        timestamp: Date.now(),
+        subject: updatedPlan.subject,
+        grade: plannerGrade,
+        type: 'LESSON_PLAN',
+        title: `מערך שיעור: ${updatedPlan.title}`,
+        content: updatedPlan.mainContent,
+        details: updatedPlan
+      });
+
     } catch (e) {
+      console.error("Error in handleCreateVisual:", e);
       alert("אירעה שגיאה ביצירת העזר הויזואלי.");
     } finally {
       setIsGeneratingVisual(false);
@@ -877,6 +991,26 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
                     onSave={(updated) => {
                       setPresentationData(updated);
                       setIsEditingPresentation(false);
+                      
+                      if (generatedPlan) {
+                        const updatedPlan = { ...generatedPlan, presentation: updated };
+                        setGeneratedPlan(updatedPlan);
+                        
+                        // Update history with the edited presentation
+                        const historyId = currentHistoryId || `plan-${Date.now()}`;
+                        setCurrentHistoryId(historyId);
+
+                        onAddHistoryItem({
+                          id: historyId,
+                          timestamp: Date.now(),
+                          subject: updatedPlan.subject,
+                          grade: plannerGrade,
+                          type: 'LESSON_PLAN',
+                          title: `מערך שיעור: ${updatedPlan.title} (מעודכן)`,
+                          content: updatedPlan.mainContent,
+                          details: updatedPlan
+                        });
+                      }
                     }}
                     onClose={() => setIsEditingPresentation(false)}
                   />
@@ -923,8 +1057,23 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
                           </div>
                         </section>
                       )}
+                      {generatedPlan.discussionQuestions && generatedPlan.discussionQuestions.length > 0 && (
+                        <section className="bg-purple-50/50 p-8 rounded-[2.5rem] border border-purple-100">
+                          <h3 className="text-xl font-black text-purple-900 mb-6 flex items-center gap-3"><MessageSquare className="text-purple-600" /> שאלות לסיכום ודיון מעמיק</h3>
+                          <div className="grid gap-4">
+                            {generatedPlan.discussionQuestions.map((q, i) => (
+                              <div key={i} className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm font-bold text-gray-700 flex items-start gap-4">
+                                <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-sm font-black shrink-0">{i+1}</div>
+                                <div className="pt-1 leading-relaxed">
+                                  <LatexRenderer text={q} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
                       <section>
-                        <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3"><MessageSquare className="text-purple-500" /> שאלות לסיכום ודיון</h3>
+                        <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3"><HelpCircle className="text-orange-500" /> סיכום השיעור</h3>
                         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 text-gray-700 font-medium">
                           <LatexRenderer text={generatedPlan.summary} />
                         </div>

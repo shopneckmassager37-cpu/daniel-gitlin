@@ -119,6 +119,9 @@ export interface LessonPlan {
   summary: string;
   resourcesNeeded: string[];
   homework?: string;
+  discussionQuestions?: string[];
+  presentation?: PresentationData;
+  infographic?: InfographicData;
 }
 
 export interface InfographicData {
@@ -130,12 +133,13 @@ export interface InfographicData {
   teacherScript?: string;
 }
 
-export type SlideLayout = 'TITLE' | 'BULLETS' | 'SPLIT' | 'QUOTE' | 'IMAGE_TEXT';
+export type SlideLayout = 'TITLE' | 'BULLETS' | 'SPLIT' | 'QUOTE' | 'IMAGE_TEXT' | 'THREE_COLUMNS' | 'TIMELINE' | 'SUMMARY';
 
 export interface SlideData {
   title: string;
   content: string[];
   layout: SlideLayout;
+  imageUrl?: string;
 }
 
 export interface PresentationData {
@@ -185,7 +189,7 @@ export interface HistoryItem {
   timestamp: number;
   subject: Subject | string;
   grade: Grade;
-  type: 'PRACTICE' | 'SUMMARY' | 'LESSON_PLAN' | 'EXAM_CHECK' | 'GAME' | 'ASSIGNMENT' | 'TEST' | 'UPCOMING_TEST' | 'CHAT';
+  type: 'PRACTICE' | 'SUMMARY' | 'LESSON_PLAN' | 'EXAM_CHECK' | 'GAME' | 'ASSIGNMENT' | 'TEST' | 'UPCOMING_TEST' | 'CHAT' | 'PRESENTATION' | 'INFOGRAPHIC';
   title: string;
   isCorrect?: boolean; 
   content?: string;    
@@ -280,6 +284,7 @@ export interface ClassroomSubmission {
   teacherGrades?: Record<string, number>; 
   aiScore?: number;
   aiFeedback?: string;
+  timeSeconds?: number;
   assignmentText?: string; 
   text?: string; // Added alias/alternative
   detailedResults?: Array<{
@@ -314,6 +319,8 @@ export interface ClassroomMaterial {
   autoGradeByAI?: boolean;
   gameType?: GameType;
   gameContent?: any;
+  leaderboardVisibility?: 'ALL' | 'TEACHER' | 'NONE';
+  scoringMethod?: 'FINAL' | 'PER_QUESTION';
   // Library specific
   views?: number;
   likes?: number;
@@ -391,6 +398,8 @@ export interface LearningGame {
   classId?: string;
   scores?: GameScore[];
   leaderboardEnabled?: boolean;
+  leaderboardVisibility?: 'ALL' | 'TEACHER' | 'NONE';
+  scoringMethod?: 'FINAL' | 'PER_QUESTION';
   timestamp: number;
 }
 

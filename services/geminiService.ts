@@ -1,5 +1,14 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse, ThinkingLevel } from "@google/genai";
+
+const getAiInstance = () => {
+  if (!process.env.GEMINI_API_KEY) {
+    console.error("GEMINI_API_KEY is not defined!");
+    throw new Error("GEMINI_API_KEY is not defined!");
+  }
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+};
+
 import { 
   Subject, Grade, Question, StudyTopic, TestPrepPlan, 
   HistoryItem, HistoryAnalysis, DailyLesson, LessonPlan,
@@ -20,6 +29,7 @@ async function callGemini<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
     try {
       return await fn();
     } catch (error: any) {
+      console.error("Gemini API Error:", error);
       lastError = error;
       const isRateLimit = 
         error?.status === 429 || 
@@ -102,11 +112,20 @@ const getConditionalInstruction = (subject: string, isChat: boolean = false) => 
 };
 
 const cleanJSON = (text: string) => {
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+  if (!text) return "";
+  // Remove markdown code blocks
+  let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Sometimes Gemini adds text before or after the JSON, try to find the first { and last }
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
 };
 
 export const detectSubjectAI = async (title: string): Promise<Subject | string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAiInstance();
   const baseSubjects = Object.values(Subject).filter(s => s !== Subject.OTHER);
   const prompt = `נתח את הכותרת הבאה וקבע לאיזה מקצוע לימודי היא שייכת.
   כותרת: "${title}"
@@ -126,21 +145,20 @@ export const detectSubjectAI = async (title: string): Promise<Subject | string> 
   החזר אך ורק את שם המקצוע, ללא מילים נוספות.
   בצע את המשימה במהירות המקסימלית (עד 15 שניות).`;
 
-  try {
-    const response = await callGemini<GenerateContentResponse>(() => ai.models.generateContent({
+  return await callGemini<Subject | string>(async () => {
+    const response = await ai.models.generateContent({
       model: LITE_MODEL,
-      contents: prompt
-    }));
+      contents: prompt,
+      config: { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }
+    });
     const detected = response.text?.trim() || "";
     const foundBase = baseSubjects.find(s => detected.includes(s));
     return foundBase || detected || Subject.MATH;
-  } catch (e) {
-    return Subject.MATH;
-  }
+  });
 };
 
 export const detectGradeAI = async (title: string, content: string): Promise<Grade> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const grades = Object.values(Grade).filter(g => g !== Grade.NOT_DEFINED);
   const prompt = `נתח את הכותרת והתוכן הבאים וקבע לאיזו שכבת גיל/כיתה הם מתאימים ביותר במערכת החינוך הישראלית.
   כותרת: "${title}"
@@ -217,7 +235,7 @@ export const generateSummary = async (
   learningProfile?: UserLearningProfile,
   attachments?: { mimeType: string, data: string }[]
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAiInstance();
   const profileContext = learningProfile ? `\nהקשר למידה אישי של התלמיד:
   - נקודות חוזק: ${learningProfile.strengths.join(', ')}
   - נקודות קושי: ${learningProfile.weaknesses.join(', ')}
@@ -231,22 +249,27 @@ export const generateSummary = async (
   ${customPrompt ? `דגשים נוספים: ${customPrompt}` : ''}
   בצע את המשימה במהירות המקסימלית (עד 15 שניות).`;
   
-  const parts: any[] = [];
-  if (attachments && attachments.length > 0) {
-    attachments.forEach(att => parts.push({ inlineData: att }));
-  }
-  parts.push({ text: prompt });
+  return await callGemini<string>(async () => {
+    const parts: any[] = [];
+    if (attachments && attachments.length > 0) {
+      attachments.forEach(att => parts.push({ inlineData: att }));
+    }
+    parts.push({ text: prompt });
 
-  const response = await callGemini<GenerateContentResponse>(() => ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: { parts },
-    config: { systemInstruction: getConditionalInstruction(subject) }
-  }));
-  return response.text || "";
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: { parts },
+      config: { 
+        systemInstruction: getConditionalInstruction(subject as string),
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      }
+    });
+    return response.text || "";
+  });
 };
 
 export const generateAssignment = async (subject: Subject | string, grade: Grade, topic: string, customPrompt?: string, learningProfile?: UserLearningProfile): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const profileContext = learningProfile ? `\nפרופיל למידה אישי:
     - חוזקות: ${learningProfile.strengths.join(', ')}
     - חולשות: ${learningProfile.weaknesses.join(', ')}
@@ -279,7 +302,7 @@ export const generateQuestions = async (
   learningProfile?: UserLearningProfile,
   attachment?: { mimeType: string, data: string }
 ): Promise<Question[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAiInstance();
   
   const mcq = mcqCount !== undefined ? mcqCount : Math.ceil(count / 2);
   const open = openCount !== undefined ? openCount : Math.floor(count / 2);
@@ -302,24 +325,24 @@ export const generateQuestions = async (
   
   בצע את המשימה במהירות המקסימלית (עד 15 שניות).`;
   
-  try {
-    const response = await callGemini<GenerateContentResponse>(() => ai.models.generateContent({
+  return await callGemini<Question[]>(async () => {
+    const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: attachment ? { parts: [{ inlineData: attachment }, { text: prompt }] } : prompt,
       config: { 
           responseMimeType: "application/json",
-          systemInstruction: getConditionalInstruction(subject)
+          systemInstruction: getConditionalInstruction(subject as string),
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
       }
-    }));
-    return JSON.parse(cleanJSON(response.text || "[]"));
-  } catch (e) {
-    console.error("Failed to parse questions JSON", e);
-    return [];
-  }
+    });
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(cleanJSON(text));
+  });
 };
 
 export const getStudyTopics = async (subject: Subject | string, grade: Grade, type: MaterialType = 'SUMMARY'): Promise<{summaries: StudyTopic[], tests: StudyTopic[]}> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `הצע 5 נושאי לימוד מרכזיים עבור המקצוע ${subject} לכיתה ${grade}, המותאמים לסוג התוכן: ${type}. 
   חוק חשוב: ה-title של כל נושא חייב להיות שם הנושא בלבד (למשל: "מספרים מכוונים וציר המספרים") ללא תוספות כמו "בוחן" או "הצבה".
   החזר JSON במבנה: { "summaries": [{"title": "", "description": ""}], "tests": [{"title": "", "description": ""}] }`;
@@ -340,7 +363,7 @@ export const generateStudentAnalytics = async (
   studentName: string,
   stats: { averageScore: number | null; submissionRate: number; totalTasks: number; completedTasks: number }
 ): Promise<{ insight: string; recommendations: string[] }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `נתח את הביצועים של התלמיד ${studentName}: ממוצע ${stats.averageScore}%, אחוז הגשה ${stats.submissionRate}%. 
   החזר אובייקט JSON עם השדות insight (טקסט קצר) ו-recommendations (מערך של 3 טיפים).`;
   
@@ -361,7 +384,7 @@ export const generateClassroomAnalytics = async (
   subject: string,
   materials: ClassroomMaterial[]
 ): Promise<{ focus: string; strengths: string; recommendations: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `נתח את נתוני הכיתה "${className}" במקצוע ${subject}. חומרים: ${JSON.stringify(materials)}.
   החזר JSON עם: focus (מוקד הקושי), strengths (נקודות חוזק), recommendations (המלצות להמשך).`;
 
@@ -378,7 +401,7 @@ export const generateClassroomAnalytics = async (
 };
 
 export const gradeOpenQuestion = async (question: string, modelAnswer: string, studentAnswer: string, attachment?: { mimeType: string, data: string }): Promise<{score: number, feedback: string}> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `השאלה: ${question}\nתשובת מודל: ${modelAnswer}\nתשובת התלמיד: ${studentAnswer}\n
   ${attachment ? 'מצורף קובץ/תמונה להגשה של התלמיד. נתח גם את תוכן הקובץ במידת הצורך.' : ''}
   הערך את תשובת התלמיד מ-0 עד 100. תן משוב בונה ומפורט בעברית. המשוב צריך להסביר מה היה נכון, מה היה חסר ואיך להשתפר.
@@ -397,7 +420,7 @@ export const gradeOpenQuestion = async (question: string, modelAnswer: string, s
 };
 
 export const getChatResponseStream = async (history: any[], message: string, subject?: Subject, grade?: Grade, attachment?: { mimeType: string, data: string }): Promise<AsyncIterable<GenerateContentResponse>> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const contents = [...history, { role: 'user', parts: attachment ? [{ inlineData: attachment }, { text: message }] : [{ text: message }] }];
   
   return await callGemini<AsyncIterable<GenerateContentResponse>>(() => ai.models.generateContentStream({
@@ -410,7 +433,7 @@ export const getChatResponseStream = async (history: any[], message: string, sub
 };
 
 export const generateTestPrepPlan = async (subject: Subject | string, grade: Grade, topic: string, days: number, attachment?: { mimeType: string, data: string }, learningProfile?: UserLearningProfile): Promise<TestPrepPlan | null> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const profileContext = learningProfile ? `\nפרופיל למידה אישי של התלמיד:
   - חוזקות: ${learningProfile.strengths.join(', ')}
   - חולשות: ${learningProfile.weaknesses.join(', ')}
@@ -450,7 +473,7 @@ export const generateTestPrepPlan = async (subject: Subject | string, grade: Gra
 };
 
 export const checkWorkForErrors = async (imageData: string, mimeType: string): Promise<any> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const prompt = `נתח את התמונה המצורפת של דף עבודה או מבחן. חפש טעויות כתיב, דקדוק או טעויות בפתרון תרגילים מתמטיים.
     החזר JSON במבנה: {
       "spellingErrors": [{"original": "", "corrected": "", "explanation": ""}],
@@ -472,7 +495,7 @@ export const checkWorkForErrors = async (imageData: string, mimeType: string): P
 };
 
 export const checkExamAI = async (imageData: string, mimeType: string, subject: string, grade: string): Promise<ExamCheckResult> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const prompt = `נתח את התמונה המצורפת של מבחן פתור במקצוע ${subject} לכיתה ${grade}.
     עליך לזהות את השאלות, את תשובות התלמיד ואת התשובות הנכונות.
     עבור כל שאלה, קבע ציון (0-100) ותן הסבר מפורט למה זה הציון שניתן.
@@ -514,7 +537,7 @@ export const checkExamAI = async (imageData: string, mimeType: string, subject: 
 };
 
 export const analyzeHistory = async (history: HistoryItem[]): Promise<HistoryAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `נתח את היסטוריית הלמידה הבאה: ${JSON.stringify(history)}. 
   זהה מגמות, נקודות חוזק, נקודות לשיפור והמלצות להמשך. 
   החזר JSON: { "insight": "ניתוח כללי", "recommendations": ["טיפ1", "טיפ2"], "strength": "נושא חזק", "weakness": "נושא לשיפור" }
@@ -533,16 +556,26 @@ export const analyzeHistory = async (history: HistoryItem[]): Promise<HistoryAna
 };
 
 export const generateLessonPlan = async (topic: string, grade: Grade, extraInfo?: string): Promise<LessonPlan> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAiInstance();
     const subject = await detectSubjectAI(topic);
     const prompt = `צור מערך שיעור מקצועי ומפורט לכיתה ${grade} בנושא "${topic}". 
     ${extraInfo ? `דגשים מיוחדים: ${extraInfo}` : ''}
-    החזר JSON במבנה של אובייקט LessonPlan הכולל שדות: title, subject, objectives (מערך), introduction, mainContent (HTML), activity, summary, resourcesNeeded (מערך), homework, discussionQuestions (מערך של לפחות 8-10 שאלות מעמיקות).
+    החזר JSON במבנה של אובייקט LessonPlan הכולל שדות: 
+    - title: כותרת השיעור
+    - subject: המקצוע (חובה להשתמש באחד מהערכים: ${Object.values(Subject).join(', ')})
+    - objectives: מערך של מטרות השיעור
+    - introduction: פתיח לשיעור
+    - mainContent: גוף השיעור בפורמט HTML עשיר
+    - activity: פעילות קבוצתית או אישית מפורטת
+    - summary: סיכום השיעור
+    - resourcesNeeded: מערך של עזרים דרושים
+    - homework: משימת המשך לבית
+    - discussionQuestions: מערך של 3-5 שאלות מעמיקות לדיון בכיתה
     
     חוקי תוכן קריטיים:
     1. פעילות קבוצתית (activity): חובה לכלול פעילות יצירתית ומעניינת.
     2. שיעורי בית (homework): חובה לכלול משימת המשך לבית.
-    3. שאלות לדיון (discussionQuestions): צור לפחות 8-10 שאלות פתוחות, מעוררות מחשבה ומעודדות דיון מעמיק וארוך. כל שאלה צריכה להיות מפורטת.
+    3. שאלות לדיון (discussionQuestions): צור 3-5 שאלות פתוחות, מעוררות מחשבה ומעודדות דיון מעמיק. כל שאלה צריכה להיות מפורטת.
 
     חוקי עיצוב ל-mainContent:
     1. טבלאות: השתמש ב-<table> להצגת נתונים.
@@ -553,38 +586,83 @@ export const generateLessonPlan = async (topic: string, grade: Grade, extraInfo?
     השתמש אך ורק בעברית. אל תכתוב תרגומים לאנגלית של מושגים (למשל: אל תכתוב "אנרגיה (Energy)").
     בצע את המשימה במהירות המקסימלית (עד 15 שניות).`;
     
-    try {
-      const response = await callGemini<GenerateContentResponse>(() => ai.models.generateContent({
+    return await callGemini<LessonPlan>(async () => {
+      const response = await ai.models.generateContent({
         model: MODEL_NAME,
         contents: prompt,
         config: { 
             responseMimeType: "application/json",
-            systemInstruction: getConditionalInstruction(subject as string) + "\nאתה מומחה לכתיבת מערכי שיעור. החזר JSON בלבד."
+            systemInstruction: getConditionalInstruction(subject as string) + "\nאתה מומחה לכתיבת מערכי שיעור. החזר JSON בלבד.",
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
         }
-      }));
-      return JSON.parse(cleanJSON(response.text || "{}"));
-    } catch (e) {
-      throw e;
-    }
+      });
+      
+      const text = response.text;
+      if (!text) throw new Error("Empty response from AI");
+      
+      const cleaned = cleanJSON(text);
+      try {
+        const plan = JSON.parse(cleaned);
+        // Basic validation
+        if (!plan.title || !plan.mainContent) {
+          throw new Error("Invalid lesson plan structure: missing title or mainContent");
+        }
+        return plan;
+      } catch (e) {
+        console.error("JSON Parse Error in generateLessonPlan:", e, "Raw text:", text);
+        throw new Error("Failed to parse lesson plan JSON");
+      }
+    });
 };
 
 export const generateLessonVisuals = async (plan: LessonPlan, type: 'INFOGRAPHIC' | 'PRESENTATION'): Promise<any> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `על בסיס מערך השיעור הבא: ${JSON.stringify(plan)}, צור ${type === 'INFOGRAPHIC' ? 'נתונים לאינפוגרפיקה' : 'מבנה למצגת שיעור'}.
-    אם אינפוגרפיקה, החזר JSON: { "mainTitle": "", "summaryLine": "", "keyPoints": [{"title": "", "description": "", "iconType": ""}], "statistics": [{"value": "", "label": ""}], "takeaway": "" }
-    אם מצגת, החזר JSON: { "title": "", "slides": [{"title": "", "content": ["נקודה 1", "..."], "layout": "TITLE|BULLETS|SPLIT|QUOTE"}] }
-    בצע את המשימה במהירות המקסימלית (עד 15 שניות).`;
+    const ai = getAiInstance();
+    // Summarize the plan to reduce token usage
+    const summaryPlan = { title: plan.title, subject: plan.subject, objectives: plan.objectives, mainContent: plan.mainContent.substring(0, 1000) };
+    const prompt = `על בסיס מערך השיעור הבא: ${JSON.stringify(summaryPlan)}, צור ${type === 'INFOGRAPHIC' ? 'נתונים לאינפוגרפיקה' : 'מבנה למצגת שיעור'}.
     
-    try {
-      const response = await callGemini<GenerateContentResponse>(() => ai.models.generateContent({
+    החזר JSON בלבד.
+    אם אינפוגרפיקה, החזר מבנה: { "mainTitle": "string", "summaryLine": "string", "keyPoints": [{"title": "string", "description": "string", "iconType": "string"}], "statistics": [{"value": "string", "label": "string"}], "takeaway": "string" }
+    אם מצגת, צור בין 8 ל-10 שקופיות והחזר מבנה: { "title": "string", "slides": [{"title": "string", "content": ["string"], "layout": "TITLE|BULLETS|SPLIT|QUOTE|IMAGE_TEXT|THREE_COLUMNS|TIMELINE|SUMMARY"}] }
+    הנחיות קריטיות:
+    1. אל תשאיר שקופיות ריקות בשום פנים ואופן. לכל שקף חייב להיות תוכן (content) מלא ומפורט.
+    2. אם אין לך מספיק תוכן למלא פריסה מורכבת (כמו THREE_COLUMNS או TIMELINE), אל תשתמש בה! השתמש ב-BULLETS או TITLE במקום.
+    3. עבור SPLIT - חובה 2 פריטים ב-content.
+    4. עבור THREE_COLUMNS - חובה 3 פריטים ב-content.
+    5. עבור IMAGE_TEXT - חובה פריט אחד ב-content (תיאור התמונה המומלצת).
+    6. עבור BULLETS ו-TIMELINE - לפחות 3 פריטים ב-content.
+    7. עבור QUOTE ו-SUMMARY - פריט אחד משמעותי ב-content.
+    8. השתמש ב-LaTeX עבור נוסחאות ($x^2$).
+    
+    בצע את המשימה במהירות המקסימלית.`;
+    
+    return await callGemini<any>(async () => {
+      console.log("Calling Gemini for visual generation:", type);
+      const response = await ai.models.generateContent({
         model: MODEL_NAME,
         contents: prompt,
         config: { responseMimeType: "application/json" }
-      }));
-      return JSON.parse(cleanJSON(response.text || "{}"));
-    } catch (e) {
-      return {};
-    }
+      });
+      
+      const text = response.text;
+      if (!text) throw new Error("Empty response from AI for visuals");
+      
+      const cleaned = cleanJSON(text);
+      try {
+        const result = JSON.parse(cleaned);
+        // Basic validation based on type
+        if (type === 'INFOGRAPHIC' && (!result.mainTitle || !result.keyPoints)) {
+          throw new Error("Invalid infographic structure");
+        }
+        if (type === 'PRESENTATION' && (!result.title || !result.slides)) {
+          throw new Error("Invalid presentation structure");
+        }
+        return result;
+      } catch (e) {
+        console.error("JSON Parse Error in generateLessonVisuals:", e, "Raw text:", text);
+        throw new Error("Failed to parse visual data JSON");
+      }
+    });
 };
 
 export const getCourseTopics = async (subject: Subject, grade: Grade): Promise<StudyTopic[]> => {
@@ -598,7 +676,7 @@ export const getCourseTopics = async (subject: Subject, grade: Grade): Promise<S
         }));
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const prompt = `הצע 6 קורסים מקיפים (סדרות לימוד של 5 ימים) למקצוע ${subject} לכיתה ${grade}.
     החזר JSON: [{"title": "", "description": "", "type": "TEST_PREP"}]
     בצע את המשימה במהירות המקסימלית (עד 15 שניות).`;
@@ -616,7 +694,7 @@ export const getCourseTopics = async (subject: Subject, grade: Grade): Promise<S
 };
 
 export const generateLessonContent = async (subject: Subject, grade: Grade, courseTitle: string, day: number): Promise<DailyLesson> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const prompt = `כתוב את התוכן ליום ${day} מתוך קורס "${courseTitle}" ב${subject} ל${grade}.
     כלול הסבר מפורט, מעמיק וארוך (HTML), עובדה מעניינת, ושאלת בדיקה מהירה.
     השתמש בטבלאות (<table>) לנתונים ובשרטוטים (geometry-node/analytic-geometry-node) להמחשות במתמטיקה.
@@ -639,7 +717,7 @@ export const generateLessonContent = async (subject: Subject, grade: Grade, cour
 };
 
 export const analyzeAndRefreshLearningProfile = async (history: HistoryItem[], currentProfile?: UserLearningProfile): Promise<UserLearningProfile> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `נתח את היסטוריית הלמידה של התלמיד וצור/עדכן פרופיל למידה אישי.
   היסטוריה: ${JSON.stringify(history.slice(-20))}
   פרופיל נוכחי: ${JSON.stringify(currentProfile)}
@@ -678,7 +756,7 @@ export const generateArtifactConfig = async (
   subject: string,
   grade: string
 ): Promise<any> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const fullPrompt = `צור רכיב אינטראקטיבי לימודי עבור המקצוע ${subject} לכיתה ${grade}.
   הנחיית המורה לעיצוב הרכיב: ${prompt}.
   
@@ -721,7 +799,7 @@ export const generateGameContent = async (
   topic: string,
   customPrompt?: string
 ): Promise<any> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   
   let structure = "";
   switch (gameType) {
@@ -750,8 +828,11 @@ export const generateGameContent = async (
       structure = `מערך של נתונים המתאים למשחק`;
   }
 
-  const prompt = `צור תוכן למשחק למידה מסוג ${gameType} בנושא "${topic}" עבור ${grade}.
+  const prompt = `צור תוכן למשחק למידה מסוג ${gameType} בנושא "${topic}" עבור תלמידים בכיתה ${grade}.
   המקצוע הוא ${subject}.
+  
+  **חשוב מאוד:** רמת הקושי של השאלות, המילים והמושגים חייבת להיות מותאמת במדויק לתלמידים בכיתה ${grade}. אל תעשה את זה קל מדי או קשה מדי עבור גיל זה.
+  
   מבנה הנתונים הנדרש: ${structure}.
   ${customPrompt ? `הנחיות נוספות: ${customPrompt}` : ''}
   החזר JSON בלבד.
@@ -774,7 +855,7 @@ export const generateGameContent = async (
 };
 
 export const generateExamFeedback = async (score: number, subject: string, grade: string, detailedResults?: any[]): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const resultsContext = detailedResults ? `\nפירוט תוצאות מלא: ${JSON.stringify(detailedResults.map(r => ({ 
     questionId: r.questionId, 
     isCorrect: r.isCorrect, 

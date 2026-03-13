@@ -5,7 +5,7 @@ import { ChatMessage, Subject, Grade, ChatSession } from '../types.ts';
 import { getChatResponseStream } from '../services/geminiService.ts';
 import { GenerateContentResponse } from "@google/genai";
 import LatexRenderer from './LatexRenderer.tsx';
-import { Trash2, Plus, History } from 'lucide-react';
+import { Trash2, Plus, History, Maximize2 } from 'lucide-react';
 
 interface ChatBotProps {
   subject: Subject | null;
@@ -25,7 +25,7 @@ interface ChatBotProps {
 const CHAT_LOADING_MESSAGES = [
     "מקליד...",
     "חושב על תשובה...",
-    "בודק בספרים...",
+    "מעבד את המידע...",
     "מנסח את המשפט...",
     "רגע אחד..."
 ];
@@ -57,6 +57,7 @@ const ChatBot: React.FC<ChatBotProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [attachment, setAttachment] = useState<{file: File, preview: string} | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -341,9 +342,14 @@ const ChatBot: React.FC<ChatBotProps> = ({
               </div>
               <div className={`max-w-[85%] flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                 {msg.attachment && (
-                  <div className="rounded-2xl overflow-hidden border-4 border-white shadow-md mb-1 max-w-[280px] group relative">
+                  <div 
+                    onClick={() => setSelectedImage(`data:${msg.attachment!.mimeType};base64,${msg.attachment!.data}`)}
+                    className="rounded-2xl overflow-hidden border-4 border-white shadow-md mb-1 max-w-[280px] group relative cursor-zoom-in"
+                  >
                     <img src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`} alt="attachment" className="w-full h-auto" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                      <Maximize2 size={24} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </div>
                 )}
                 {msg.text && (
@@ -373,8 +379,14 @@ const ChatBot: React.FC<ChatBotProps> = ({
             {attachment && (
               <div className="absolute bottom-full left-0 mb-4 animate-slide-up">
                 <div className="bg-white p-2 rounded-2xl shadow-2xl border border-gray-100 flex items-center gap-3">
-                  <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shadow-inner">
+                  <div 
+                    onClick={() => setSelectedImage(attachment.preview)}
+                    className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shadow-inner cursor-zoom-in group relative"
+                  >
                     <img src={attachment.preview} alt="preview" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                      <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </div>
                   <div className="pr-2">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">קובץ מצורף</p>
@@ -423,6 +435,25 @@ const ChatBot: React.FC<ChatBotProps> = ({
             </p>
           </div>
         </div>
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button 
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+          >
+            <X size={32} />
+          </button>
+          <img 
+            src={selectedImage} 
+            alt="Full size" 
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl animate-zoom-in"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

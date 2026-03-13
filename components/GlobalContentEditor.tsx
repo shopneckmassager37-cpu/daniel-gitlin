@@ -4,7 +4,7 @@ import { generateSummary, generateAssignment, generateQuestions, detectSubjectAI
 import { 
   X, Send, FileText, ListChecks, ClipboardList, Upload, BellRing, Bot, Sparkles, Loader2, 
   Trash2, Plus, CheckCircle2, Search, School, Maximize2, Minimize2, FolderOpen, Library, Settings2, GraduationCap, BookmarkPlus, ArrowLeft, ChevronDown,
-  Gamepad2, Brain, Target, HelpCircle, Dices, Image, Video, Code, Calculator, Link, Type as TypeIcon, Bell
+  Gamepad2, Brain, Target, HelpCircle, Dices, Image, Video, Code, Calculator, Link, Type as TypeIcon, Bell, GripVertical
 } from 'lucide-react';
 import RichEditor from './RichEditor.tsx';
 import TestPrepView from './TestPrepView.tsx';
@@ -133,7 +133,7 @@ interface GlobalContentEditorProps {
 
 const getHebrewBlockType = (type: string) => {
   switch (type) {
-    case 'TEXT': return 'טקסט';
+    case 'TEXT': return 'סיכום';
     case 'SUMMARY': return 'סיכום';
     case 'TEST': return 'שאלות תרגול';
     case 'GAME': return 'משחק למידה';
@@ -142,6 +142,351 @@ const getHebrewBlockType = (type: string) => {
     default: return type;
   }
 }
+
+const SortableBlock = ({ 
+  block, bIndex, isAdvancedMode, activePageIndex, draftMaterial, setDraftMaterial, getHebrewBlockType, addBlock, 
+  currentContextSubject, expandedOptionMap, setExpandedOptionMap,
+  gameType, setGameType, gameContent, setGameContent, userGenerationPrompt, setUserGenerationPrompt, loading, setLoading,
+  detectSubjectAI, generateGameContent, currentContextGrade
+}: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const changeBlockType = (newType: BlockType) => {
+    const newPages = [...(draftMaterial.pages || [])];
+    const oldBlock = newPages[activePageIndex].blocks[bIndex];
+    
+    // Reset content if switching to/from types that use specific JSON formats
+    let newContent = oldBlock.content;
+    if ((oldBlock.type === 'FILE' || newType === 'FILE') && oldBlock.type !== newType) {
+      newContent = '';
+    }
+    
+    newPages[activePageIndex].blocks[bIndex] = { ...oldBlock, type: newType, content: newContent };
+    setDraftMaterial((prev: any) => ({ ...prev, pages: newPages }));
+    setShowTypeMenu(false);
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`relative ${showTypeMenu ? 'z-[130]' : ''}`}>
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative group">
+        {isAdvancedMode && (
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <div {...attributes} {...listeners} className="cursor-grab p-1 hover:bg-gray-100 rounded text-gray-400">
+                <GripVertical size={16} />
+              </div>
+              <span className="text-[10px] font-black text-gray-400 uppercase">בלוק {bIndex + 1} ({getHebrewBlockType(block.type)})</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`relative ${showTypeMenu ? 'z-[130]' : 'z-10'}`}>
+                <button 
+                  onClick={() => setShowTypeMenu(!showTypeMenu)}
+                  className="text-primary text-xs font-bold flex items-center gap-1 hover:underline"
+                >
+                  <Settings2 size={14} />
+                  שנה סוג
+                </button>
+                {showTypeMenu && (
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-[130] p-2 animate-in fade-in zoom-in duration-200">
+                    {[
+                      { id: 'TEXT', label: 'סיכום', icon: FileText },
+                      { id: 'TEST', label: 'מבחן/תרגול', icon: ListChecks },
+                      { id: 'UPCOMING_TEST', label: 'התראה על מבחן', icon: BellRing },
+                      { id: 'GAME', label: 'משחק למידה', icon: Gamepad2 },
+                      { id: 'ASSIGNMENT', label: 'מטלה', icon: ClipboardList },
+                      { id: 'FILE', label: 'קובץ', icon: Upload }
+                    ].map(t => (
+                      <button 
+                        key={t.id}
+                        onClick={() => changeBlockType(t.id as BlockType)}
+                        className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg text-right transition-colors"
+                      >
+                        <t.icon size={14} className="text-gray-400" />
+                        <span className="text-xs font-bold text-gray-700">{t.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button 
+                onClick={() => {
+                  const newPages = [...(draftMaterial.pages || [])];
+                  newPages[activePageIndex].blocks = newPages[activePageIndex].blocks.filter((_: any, i: number) => i !== bIndex);
+                  setDraftMaterial((prev: any) => ({...prev, pages: newPages}));
+                }}
+                className="text-red-500 text-xs font-bold flex items-center gap-1 hover:underline"
+              >
+                <Trash2 size={14} />
+                מחק בלוק
+              </button>
+            </div>
+          </div>
+        )}
+        {block.type === 'FILE' ? (
+          <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col items-center justify-center py-10">
+            <div className="bg-blue-100 p-4 rounded-full text-blue-500 mb-4"><Upload size={32}/></div>
+            <button 
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.onchange = (e: any) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const newPages = [...(draftMaterial.pages || [])];
+                      newPages[activePageIndex].blocks[bIndex] = { 
+                        ...newPages[activePageIndex].blocks[bIndex], 
+                        content: JSON.stringify({ name: file.name, mimeType: file.type, data: event.target?.result }) 
+                      };
+                      setDraftMaterial((prev: any) => ({...prev, pages: newPages}));
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                };
+                input.click();
+              }}
+              className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-md hover:bg-blue-700 transition-all"
+            >
+              בחר קובץ
+            </button>
+            {block.content && (() => {
+              try {
+                const fileData = JSON.parse(block.content);
+                return (
+                  <p className="mt-4 text-sm font-bold text-blue-900">
+                    קובץ נבחר: {fileData.name}
+                  </p>
+                );
+              } catch (e) {
+                return null;
+              }
+            })()}
+          </div>
+        ) : block.type === 'GAME' ? (
+          <div className="p-8 bg-purple-50 rounded-[2.5rem] border border-purple-100 animate-fade-in">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="bg-purple-600 text-white p-3 rounded-2xl shadow-lg">
+                <Gamepad2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-purple-900">הגדרות משחק למידה</h3>
+                <p className="text-purple-600 text-xs font-bold">בחר סוג משחק וייצר תוכן בעזרת AI</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+              {[
+                { id: 'MEMORY', label: 'משחק זיכרון', icon: Brain },
+                { id: 'WHEEL', label: 'גלגל מזל', icon: Target },
+                { id: 'TRIVIA', label: 'שעשעון טלוויזיה', icon: HelpCircle },
+                { id: 'WORD_SEARCH', label: 'תפזורת', icon: Search },
+                { id: 'HANGMAN', label: 'איש תלוי', icon: Dices },
+                { id: 'CROSSWORD', label: 'תשבץ', icon: Plus },
+              ].map(t => (
+                <button 
+                  key={t.id}
+                  onClick={() => setGameType(t.id as GameType)}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${gameType === t.id ? 'border-purple-500 bg-white text-purple-700 shadow-md' : 'border-transparent bg-white/50 text-gray-400 hover:border-purple-200'}`}
+                >
+                  <t.icon size={20} />
+                  <span className="font-black text-[10px]">{t.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-purple-100">
+                <span className="font-black text-purple-900 text-sm">טבלת מובילים:</span>
+                <select className="p-2 rounded-xl border border-gray-100 font-bold text-xs outline-none focus:border-purple-500 transition-all" value={draftMaterial.leaderboardVisibility || 'ALL'} onChange={(e) => {
+                  const value = e.target.value as 'ALL' | 'TEACHER' | 'NONE';
+                  setDraftMaterial((prev: any) => ({...prev, leaderboardVisibility: value}));
+                }}>
+                  <option value="ALL">גלוי לכולם</option>
+                  <option value="TEACHER">רק למורה</option>
+                  <option value="NONE">ללא טבלה</option>
+                </select>
+              </div>
+              {gameType === 'TRIVIA' && (
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-purple-100">
+                  <span className="font-black text-purple-900 text-sm">שיטת ניקוד:</span>
+                  <select className="p-2 rounded-xl border border-gray-100 font-bold text-xs outline-none focus:border-purple-500 transition-all" value={draftMaterial.scoringMethod || 'FINAL'} onChange={(e) => setDraftMaterial((prev: any) => ({...prev, scoringMethod: e.target.value as 'FINAL' | 'PER_QUESTION'}))}>
+                    <option value="FINAL">ציון בסוף</option>
+                    <option value="PER_QUESTION">נכון/לא נכון אחרי כל שאלה</option>
+                  </select>
+                </div>
+              )}
+              
+              <div className="bg-white p-4 rounded-2xl border border-purple-100">
+                <label className="block text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2">הנחיות נוספות ל-AI (אופציונלי)</label>
+                <textarea 
+                  value={userGenerationPrompt}
+                  onChange={(e) => setUserGenerationPrompt(e.target.value)}
+                  placeholder="למשל: התמקד במושגים של המהפכה הצרפתית, השתמש בשפה פשוטה..."
+                  className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 text-sm font-medium outline-none focus:border-purple-500 transition-all min-h-[80px]"
+                />
+              </div>
+            </div>
+            
+            <button 
+              onClick={async () => {
+                if (!draftMaterial.title) {
+                  alert("נא להזין כותרת לפני ייצור תוכן המשחק");
+                  return;
+                }
+                setLoading(true);
+                try {
+                  const detectedSub = currentContextSubject || await detectSubjectAI(draftMaterial.title);
+                  const effectiveGrade = (currentContextGrade as Grade) || Grade.GRADE_10;
+                  const content = await generateGameContent(detectedSub, effectiveGrade, gameType, draftMaterial.title, userGenerationPrompt);
+                  setGameContent(content);
+                } catch (e) {
+                  alert("שגיאה בייצור תוכן המשחק");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="w-full p-4 bg-purple-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 transition-all shadow-lg disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
+              <span>ייצר תוכן למשחק עם AI</span>
+            </button>
+
+            {gameContent && (
+              <div className="mt-8 bg-white p-6 rounded-2xl border border-purple-100 animate-slide-up">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-black text-gray-800 text-sm">תוכן המשחק שנוצר</h4>
+                  <button onClick={() => setGameContent(null)} className="text-red-500 text-[10px] font-black hover:underline">נקה תוכן</button>
+                </div>
+                <div className="bg-gray-900 p-4 rounded-xl text-left font-mono text-[10px] overflow-x-auto text-green-400 max-h-40" dir="ltr">
+                  <pre>{JSON.stringify(gameContent, null, 2)}</pre>
+                </div>
+                <p className="mt-3 text-[10px] text-gray-400 font-bold">התוכן נוצר ומוכן! התלמידים יראו את המשחק כשיפתחו את החומר.</p>
+              </div>
+            )}
+          </div>
+        ) : block.type === 'TEST' ? (
+          <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-green-900 uppercase tracking-widest text-xs flex items-center gap-2"><ListChecks size={16}/> שאלות המבחן/תרגול</h3>
+              <div className="flex gap-2">
+                <button onClick={() => setDraftMaterial((prev: any) => ({...prev, questions: [...(prev.questions || []), { id: `q-${Date.now()}`, text: '', options: ['', '', '', ''], correctIndex: 0, explanation: '', type: 'MCQ' }]}))} className="text-primary font-black text-xs flex items-center gap-1 hover:underline px-3 py-1 bg-white rounded-lg shadow-sm"><Plus size={14}/> שאלה אמריקאית</button>
+                <button onClick={() => setDraftMaterial((prev: any) => ({...prev, questions: [...(prev.questions || []), { id: `q-${Date.now()}`, text: '', options: [], correctIndex: 0, explanation: '', type: 'OPEN', modelAnswer: '' }]}))} className="text-purple-600 font-black text-xs flex items-center gap-1 hover:underline px-3 py-1 bg-white rounded-lg shadow-sm"><Plus size={14}/> שאלה פתוחה</button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-6 p-3 bg-white rounded-xl border border-green-200">
+              <span className="font-bold text-green-800 text-xs">שיטת ניקוד:</span>
+              <select className="p-1 rounded-lg border border-gray-200 font-bold text-xs" value={draftMaterial.scoringMethod || 'FINAL'} onChange={(e) => {
+                const value = e.target.value as 'FINAL' | 'PER_QUESTION';
+                setDraftMaterial(prev => ({...prev, scoringMethod: value}));
+              }}>
+                <option value="FINAL">ציון בסוף</option>
+                <option value="PER_QUESTION">נכון/לא נכון אחרי כל שאלה</option>
+              </select>
+            </div>
+
+            <div className="space-y-6">
+              {draftMaterial.questions && draftMaterial.questions.map((q: any, i: number) => {
+                const anyOptionExpanded = q.options?.some((_: any, oi: number) => expandedOptionMap[`${q.id}-${oi}`]);
+                return (
+                  <div key={q.id} className="bg-white p-6 rounded-2xl shadow-sm border border-green-200 relative group/q">
+                    <button onClick={() => setDraftMaterial((prev: any) => ({...prev, questions: prev.questions?.filter((item: any) => item.id !== q.id)}))} className="absolute top-4 left-4 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover/q:opacity-100 z-10 bg-white rounded-full p-1"><Trash2 size={16}/></button>
+                    <div className="mb-6">
+                      <ExpandableField 
+                        label={`שאלה ${i+1}`}
+                        value={q.text} 
+                        onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].text = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} 
+                        placeholder="כתוב את השאלה כאן..." 
+                        isTextarea
+                        subject={currentContextSubject}
+                      />
+                    </div>
+                    {q.type === 'OPEN' ? (
+                      <div className="space-y-4">
+                         {draftMaterial.autoGradeByAI && (
+                           <ExpandableField 
+                            label="תשובת מודל"
+                            value={q.modelAnswer || ''} 
+                            onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].modelAnswer = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} 
+                            isTextarea
+                            subject={currentContextSubject}
+                          />
+                         )}
+                         {!draftMaterial.autoGradeByAI && (
+                           <ExpandableField 
+                            label="הסבר פתרון (אופציונלי)"
+                            value={q.explanation || ''} 
+                            onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].explanation = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} 
+                            isTextarea
+                            subject={currentContextSubject}
+                          />
+                         )}
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className={`grid gap-4 transition-all duration-300 ${anyOptionExpanded ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
+                          {q.options && q.options.map((opt: any, oi: number) => (
+                            <div key={oi} className={`flex items-start gap-3 p-3 rounded-2xl border-2 transition-all ${q.correctIndex === oi ? 'border-green-500 bg-green-50' : 'border-gray-50'} ${expandedOptionMap[`${q.id}-${oi}`] ? 'col-span-full' : ''}`}>
+                              <input type="radio" className="mt-4" checked={q.correctIndex === oi} onChange={() => { const newQs = [...draftMaterial.questions!]; newQs[i].correctIndex = oi; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} />
+                              <div className="flex-1">
+                                <ExpandableField 
+                                  value={opt} 
+                                  onToggle={(expanded) => setExpandedOptionMap((prev: any) => ({...prev, [`${q.id}-${oi}`]: expanded}))}
+                                  onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].options[oi] = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} 
+                                  placeholder={`אופציה ${oi+1}`} 
+                                  subject={currentContextSubject}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <ExpandableField 
+                          label="הסבר פתרון (אופציונלי)"
+                          value={q.explanation || ''} 
+                          onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].explanation = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} 
+                          isTextarea
+                          subject={currentContextSubject}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <RichEditor 
+            value={block.content || ''} 
+            onChange={content => {
+              const newPages = [...(draftMaterial.pages || [])];
+              newPages[activePageIndex].blocks[bIndex] = { ...newPages[activePageIndex].blocks[bIndex], content };
+              setDraftMaterial((prev: any) => ({...prev, pages: newPages}));
+            }} 
+            placeholder={block.type === 'ASSIGNMENT' ? "כתוב כאן את הוראות המטלה והמשימות לתלמידים..." : "כתוב כאן את תוכן התוכן שיוצג לתלמידים..."} 
+            showGuide={true}
+            subject={currentContextSubject}
+            stickyOffset="top-0"
+          />
+        )}
+      </div>
+      {isAdvancedMode && (
+        <button onClick={() => addBlock(bIndex)}
+          className="w-full py-2 flex items-center justify-center text-gray-300 hover:text-primary transition-all"
+        >
+          <Plus size={20} />
+        </button>
+      )}
+    </div>
+  );
+};
 
 const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({ 
   user, onClose, onPublish, onSaveDraft, classrooms, initialMaterial, onUpdateUser, isPro, checkAndIncrementAiLimit, title, initialSelectedClassIds, skipLibrarySave
@@ -155,7 +500,6 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [showClassSelector, setShowClassSelector] = useState(false);
-  const [showBlockTypeSelector, setShowBlockTypeSelector] = useState(false);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>(initialSelectedClassIds || []);
   const [searchTerm, setSearchTerm] = useState('');
   const [showImportModal, setShowImportModal] = useState<'REPO' | 'LIBRARY' | null>(null);
@@ -273,8 +617,9 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
   }, [initialMaterial]);
 
   const [aiMcqCount, setAiMcqCount] = useState(3);
-  const [aiTargetBlockType, setAiTargetBlockType] = useState<BlockType | 'TEST' | null>(null);
   const [aiOpenCount, setAiOpenCount] = useState(2);
+  const [aiGenType, setAiGenType] = useState<'SUMMARY' | 'TEST' | 'ASSIGNMENT'>('SUMMARY');
+  const [aiTargetBlockType, setAiTargetBlockType] = useState<BlockType | 'TEST' | null>(null);
   const [activePageIndex, setActivePageIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -290,50 +635,31 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
-  const renderBlockTypeSelector = (index: number) => {
-    if (!showBlockTypeSelector || activeBlockIndex !== index) return null;
-    return (
-      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-lg animate-slide-up my-4">
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="font-bold text-gray-800">בחר סוג בלוק</h4>
-          <button onClick={() => setShowBlockTypeSelector(false)} className="text-gray-400 hover:text-gray-600"><X size={16}/></button>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {[
-            { type: 'TEXT', label: 'טקסט', icon: <TypeIcon size={16}/> },
-            { type: 'SUMMARY', label: 'סיכום', icon: <FileText size={16}/> },
-            { type: 'TEST', label: 'שאלות', icon: <ListChecks size={16}/> },
-            { type: 'GAME', label: 'משחק למידה', icon: <Gamepad2 size={16}/> },
-            { type: 'FILE', label: 'קובץ', icon: <FileText size={16}/> }
-          ].map(block => (
-            <button
-              key={block.type}
-              onClick={() => {
-                const newPages = [...(draftMaterial.pages || [])];
-                const newBlock = { id: `block-${Date.now()}`, type: block.type as any, content: '' };
-                const insertIndex = index === -1 ? 0 : index + 1;
-                newPages[activePageIndex].blocks.splice(insertIndex, 0, newBlock);
-                setDraftMaterial(prev => ({...prev, pages: newPages}));
-                setShowBlockTypeSelector(false);
-                setActiveBlockIndex(null);
-              }}
-              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gray-50 hover:bg-primary hover:text-white transition-all text-gray-600 group"
-            >
-              <div className="p-2 bg-white rounded-lg group-hover:bg-white/20 group-hover:text-white text-primary shadow-sm">
-                {block.icon}
-              </div>
-              <span className="text-xs font-bold">{block.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
+  const addBlock = (index: number) => {
+    const newPages = [...(draftMaterial.pages || [])];
+    const blockTypeMap: Record<string, BlockType> = {
+      'SUMMARY': 'TEXT',
+      'TEST': 'TEST',
+      'GAME': 'GAME',
+      'ASSIGNMENT': 'TEST',
+      'UPLOADED_FILE': 'FILE',
+      'UPCOMING_TEST': 'TEXT'
+    };
+    const newBlockType = blockTypeMap[draftMaterial.type || ''] || 'TEXT';
+    const newBlock = { id: `block-${Date.now()}`, type: newBlockType, content: '' };
+    const insertIndex = index + 1;
+    newPages[activePageIndex].blocks.splice(insertIndex, 0, newBlock);
+    setDraftMaterial(prev => ({...prev, pages: newPages}));
   };
 
   const currentContextSubject = useMemo(() => {
@@ -437,7 +763,9 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
         subject: aiSubject,
         grade: finalGrade,
         gameType: draftMaterial.type === 'GAME' ? gameType : undefined,
-        gameContent: draftMaterial.type === 'GAME' ? gameContent : undefined
+        gameContent: draftMaterial.type === 'GAME' ? gameContent : undefined,
+        scoringMethod: draftMaterial.scoringMethod,
+        leaderboardVisibility: draftMaterial.leaderboardVisibility
       };
 
       if (!skipLibrarySave) {
@@ -619,24 +947,36 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                     }
                     setDraftMaterial(prev => {
                       const newState = { ...prev, type: newType, dueDate: newDueDate };
-                      if (!isAdvancedMode) {
-                        let blockType: any = 'TEXT';
-                        if (newType === 'TEST' || newType === 'ASSIGNMENT') blockType = 'TEST';
-                        if (newType === 'UPLOADED_FILE') blockType = 'FILE';
-                        if (newType === 'GAME') blockType = 'GAME';
-                        if (newType === 'UPCOMING_TEST') blockType = 'UPCOMING_TEST';
+                      let blockType: any = 'TEXT';
+                      if (newType === 'TEST' || newType === 'ASSIGNMENT') blockType = 'TEST';
+                      if (newType === 'UPLOADED_FILE') blockType = 'FILE';
+                      if (newType === 'GAME') blockType = 'GAME';
+                      if (newType === 'UPCOMING_TEST') blockType = 'UPCOMING_TEST';
+                      
+                      const newPages = [...(prev.pages || [])];
+                      if (newPages.length === 0) {
+                        newPages.push({ id: `page-${Date.now()}`, blocks: [] });
+                      }
+                      
+                      // Update the type of the first block if it exists, otherwise add it
+                      if (newPages[0].blocks.length === 0) {
+                        newPages[0].blocks.push({ id: `block-${Date.now()}`, type: blockType, content: '' });
+                      } else {
+                        // Update the type of the CURRENT block if we are in advanced mode, 
+                        // or the first block if not.
+                        const targetPageIndex = isAdvancedMode ? activePageIndex : 0;
+                        const targetBlockIndex = isAdvancedMode ? (activeBlockIndex !== null ? activeBlockIndex : 0) : 0;
                         
-                        const newPages = [...(prev.pages || [])];
-                        if (newPages.length === 0) {
-                          newPages.push({ id: `page-${Date.now()}`, blocks: [] });
-                        }
-                        if (newPages[0].blocks.length === 0) {
-                          newPages[0].blocks.push({ id: `block-${Date.now()}`, type: blockType, content: '' });
+                        if (newPages[targetPageIndex] && newPages[targetPageIndex].blocks[targetBlockIndex]) {
+                          newPages[targetPageIndex].blocks[targetBlockIndex] = { 
+                            ...newPages[targetPageIndex].blocks[targetBlockIndex], 
+                            type: blockType 
+                          };
                         } else {
                           newPages[0].blocks[0] = { ...newPages[0].blocks[0], type: blockType };
                         }
-                        newState.pages = newPages;
                       }
+                      newState.pages = newPages;
                       return newState;
                     })
                   }}
@@ -663,45 +1003,44 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
             </div>
           )}
 
-          {(isTest || isAssignment || (draftMaterial.pages?.some(p => p.blocks.some(b => b.type === 'TEST')))) && (
-            <div className="space-y-6 pt-4 border-t border-gray-100">
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pr-2">שיטת בדיקה (AI / ידני)</label>
-                <div className="flex bg-gray-50 p-1.5 rounded-2xl">
-                    <button 
-                      onClick={() => setDraftMaterial(prev => ({...prev, autoGradeByAI: true}))}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${draftMaterial.autoGradeByAI ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
-                    >
-                      בדיקת AI
-                    </button>
-                    <button 
-                      onClick={() => setDraftMaterial(prev => ({...prev, autoGradeByAI: false}))}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${!draftMaterial.autoGradeByAI ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
-                    >
-                      בדיקה ידנית
-                    </button>
-                </div>
-              </div>
-              {isTest && (
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pr-2">כמות שאלות לייצור (AI)</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-center">
-                      <span className="text-[10px] font-black text-gray-400 block mb-1">אמריקאיות</span>
-                      <input type="number" min="0" max="10" value={aiMcqCount} onChange={(e) => setAiMcqCount(parseInt(e.target.value))} className="w-full bg-transparent font-black text-lg text-indigo-600 outline-none text-center" />
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-center">
-                      <span className="text-[10px] font-black text-gray-400 block mb-1">פתוחות</span>
-                      <input type="number" min="0" max="10" value={aiOpenCount} onChange={(e) => setAiOpenCount(parseInt(e.target.value))} className="w-full bg-transparent font-black text-lg text-purple-600 outline-none text-center" />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {!isFileOnly && (
              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pr-2 flex items-center gap-2"><Bot size={12}/> סוג תוכן לייצור</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'SUMMARY', label: 'סיכום', icon: FileText },
+                      { id: 'TEST', label: 'שאלות', icon: ListChecks },
+                      { id: 'ASSIGNMENT', label: 'מטלה', icon: ClipboardList }
+                    ].map(t => (
+                      <button 
+                        key={t.id}
+                        onClick={() => setAiGenType(t.id as any)}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${aiGenType === t.id ? 'border-primary bg-blue-50 text-primary' : 'border-gray-50 text-gray-400 hover:border-gray-100'}`}
+                      >
+                        <t.icon size={16} />
+                        <span className="text-[8px] font-black">{t.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {aiGenType === 'TEST' && (
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pr-2">כמות שאלות לייצור</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-center">
+                        <span className="text-[10px] font-black text-gray-400 block mb-1">אמריקאיות</span>
+                        <input type="number" min="0" max="10" value={aiMcqCount} onChange={(e) => setAiMcqCount(parseInt(e.target.value) || 0)} className="w-full bg-transparent font-black text-lg text-indigo-600 outline-none text-center" />
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-center">
+                        <span className="text-[10px] font-black text-gray-400 block mb-1">פתוחות</span>
+                        <input type="number" min="0" max="10" value={aiOpenCount} onChange={(e) => setAiOpenCount(parseInt(e.target.value) || 0)} className="w-full bg-transparent font-black text-lg text-purple-600 outline-none text-center" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {(!initialSelectedClassIds || initialSelectedClassIds.length === 0) && (
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pr-2">התאמת רמת התוכן (כיתה)</label>
@@ -756,19 +1095,40 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                      const result = await generateTeacherMaterial(
                        detectedSub,
                        detectedGrade,
-                       activeBlock.type as any,
+                       aiGenType as MaterialType,
                        draftMaterial.title,
-                       userGenerationPrompt
+                       userGenerationPrompt,
+                       aiGenType === 'TEST' ? { mcqCount: aiMcqCount, openCount: aiOpenCount } : undefined
                      );
                      
-                     // Update block content
+                     // Update block content or add new block
                      const newPages = [...(draftMaterial.pages || [])];
-                     const blockToUpdate = newPages[activePageIndexForBlock].blocks[activeBlockIndex ?? 0];
+                     if (newPages.length === 0) {
+                       newPages.push({ id: `page-${Date.now()}`, blocks: [] });
+                     }
+                     
+                     const targetBlockType = aiGenType === 'TEST' ? 'TEST' : (aiGenType === 'ASSIGNMENT' ? 'TEST' : 'TEXT');
+                     
+                     // If active block is empty or same type, update it. Otherwise add new.
+                     let blockToUpdate = newPages[activePageIndexForBlock]?.blocks[activeBlockIndex ?? 0];
+                     if (!blockToUpdate || (blockToUpdate.content === '' && (blockToUpdate.questions?.length || 0) === 0)) {
+                       if (!blockToUpdate) {
+                         blockToUpdate = { id: `block-${Date.now()}`, type: targetBlockType, content: '' };
+                         newPages[activePageIndexForBlock].blocks.push(blockToUpdate);
+                       } else {
+                         blockToUpdate.type = targetBlockType;
+                       }
+                     } else {
+                       // Add new block
+                       blockToUpdate = { id: `block-${Date.now()}`, type: targetBlockType, content: '' };
+                       newPages[activePageIndexForBlock].blocks.push(blockToUpdate);
+                     }
+
                      if (result.content) {
                        blockToUpdate.content = result.content;
                      }
                      if (result.questions) {
-                       setDraftMaterial(prev => ({...prev, questions: [...(prev.questions || []), ...result.questions!]}));
+                       blockToUpdate.questions = [...(blockToUpdate.questions || []), ...result.questions!];
                      }
                      setDraftMaterial(prev => ({...prev, pages: newPages}));
                      
@@ -804,11 +1164,22 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => {
                   const { active, over } = event;
                   if (active.id !== over?.id) {
-                    setDraftMaterial(prev => {
-                      const oldIndex = prev.pages!.findIndex(p => p.id === active.id);
-                      const newIndex = prev.pages!.findIndex(p => p.id === over!.id);
-                      return { ...prev, pages: arrayMove(prev.pages!, oldIndex, newIndex) };
-                    });
+                    const oldIndex = draftMaterial.pages!.findIndex(p => p.id === active.id);
+                    const newIndex = draftMaterial.pages!.findIndex(p => p.id === over!.id);
+                    
+                    setDraftMaterial(prev => ({
+                      ...prev,
+                      pages: arrayMove(prev.pages!, oldIndex, newIndex)
+                    }));
+                    
+                    // If the active page was moved, follow it
+                    if (activePageIndex === oldIndex) {
+                      setActivePageIndex(newIndex);
+                    } else if (activePageIndex > oldIndex && activePageIndex <= newIndex) {
+                      setActivePageIndex(activePageIndex - 1);
+                    } else if (activePageIndex < oldIndex && activePageIndex >= newIndex) {
+                      setActivePageIndex(activePageIndex + 1);
+                    }
                   }
                 }}>
                   <SortableContext items={draftMaterial.pages ? draftMaterial.pages.map(p => p.id) : []} strategy={horizontalListSortingStrategy}>
@@ -844,268 +1215,56 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
             )}
 
             <div className="space-y-6">
-              {isAdvancedMode && (isAdvancedMode ? (!showBlockTypeSelector || activeBlockIndex !== -1) : false) && (
-                <button onClick={() => {
-                    setActivePageIndexForBlock(activePageIndex);
-                    setActiveBlockIndex(-1);
-                    setShowBlockTypeSelector(true);
-                  }}
+              {isAdvancedMode && (
+                <button onClick={() => addBlock(-1)}
                   className="w-full py-2 flex items-center justify-center text-gray-300 hover:text-primary transition-all"
                 >
                   <Plus size={20} />
                 </button>
               )}
-              {renderBlockTypeSelector(-1)}
-              {draftMaterial.pages && draftMaterial.pages[isAdvancedMode ? activePageIndex : 0] && (isAdvancedMode ? draftMaterial.pages[activePageIndex].blocks : draftMaterial.pages[0].blocks).filter(b => !!b).map((block, bIndex) => (
-                <div key={block.id}>
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    {isAdvancedMode && (
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-[10px] font-black text-gray-400 uppercase">בלוק {bIndex + 1} ({getHebrewBlockType(block.type)})</span>
-                        <button 
-                          onClick={() => {
-                            const newPages = [...(draftMaterial.pages || [])];
-                            newPages[activePageIndex].blocks = newPages[activePageIndex].blocks.filter((_, i) => i !== bIndex);
-                            setDraftMaterial(prev => ({...prev, pages: newPages}));
-                          }}
-                          className="text-red-500 text-xs font-bold"
-                        >
-                          מחק בלוק
-                        </button>
-                      </div>
-                    )}
-                    {block.type === 'FILE' ? (
-                      <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col items-center justify-center py-10">
-                        <div className="bg-blue-100 p-4 rounded-full text-blue-500 mb-4"><Upload size={32}/></div>
-                        <button 
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.onchange = (e: any) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                  const newPages = [...(draftMaterial.pages || [])];
-                                  newPages[activePageIndex].blocks[bIndex] = { 
-                                    ...newPages[activePageIndex].blocks[bIndex], 
-                                    content: JSON.stringify({ name: file.name, mimeType: file.type, data: event.target?.result }) 
-                                  };
-                                  setDraftMaterial(prev => ({...prev, pages: newPages}));
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            };
-                            input.click();
-                          }}
-                          className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-md hover:bg-blue-700 transition-all"
-                        >
-                          בחר קובץ
-                        </button>
-                        {block.content && (
-                          <p className="mt-4 text-sm font-bold text-blue-900">
-                            קובץ נבחר: {JSON.parse(block.content).name}
-                          </p>
-                        )}
-                      </div>
-                    ) : block.type === 'GAME' ? (
-                      <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100">
-                        <div className="flex items-center justify-between mb-4">
-                          <label className="block text-sm font-bold text-purple-900">הגדרות משחק למידה:</label>
-                          <button 
-                            onClick={() => {
-                              setDraftMaterial(prev => ({...prev, type: 'GAME'}));
-                            }}
-                            className="text-xs font-bold text-purple-600 hover:underline"
-                          >
-                            פתח הגדרות משחק מלאות
-                          </button>
-                        </div>
-                        <p className="text-sm text-purple-700">
-                          כדי להגדיר את המשחק, אנא השתמש בהגדרות המשחק בתחתית העמוד (או שנה את סוג התוכן ל"משחק למידה").
-                        </p>
-                      </div>
-                    ) : block.type === 'TEST' ? (
-                      <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-black text-green-900 uppercase tracking-widest text-xs flex items-center gap-2"><ListChecks size={16}/> שאלות המבחן/תרגול</h3>
-                          <div className="flex gap-2">
-                            <button onClick={() => setDraftMaterial(prev => ({...prev, questions: [...(prev.questions || []), { id: `q-${Date.now()}`, text: '', options: ['', '', '', ''], correctIndex: 0, explanation: '', type: 'MCQ' }]}))} className="text-primary font-black text-xs flex items-center gap-1 hover:underline px-3 py-1 bg-white rounded-lg shadow-sm"><Plus size={14}/> שאלה אמריקאית</button>
-                            <button onClick={() => setDraftMaterial(prev => ({...prev, questions: [...(prev.questions || []), { id: `q-${Date.now()}`, text: '', options: [], correctIndex: 0, explanation: '', type: 'OPEN', modelAnswer: '' }]}))} className="text-purple-600 font-black text-xs flex items-center gap-1 hover:underline px-3 py-1 bg-white rounded-lg shadow-sm"><Plus size={14}/> שאלה פתוחה</button>
-                          </div>
-                        </div>
-                        <div className="space-y-6">
-                          {draftMaterial.questions && draftMaterial.questions.map((q, i) => {
-                            const anyOptionExpanded = q.options?.some((_, oi) => expandedOptionMap[`${q.id}-${oi}`]);
-                            return (
-                              <div key={q.id} className="bg-white p-6 rounded-2xl shadow-sm border border-green-200 relative group/q">
-                                <button onClick={() => setDraftMaterial(prev => ({...prev, questions: prev.questions?.filter(item => item.id !== q.id)}))} className="absolute top-4 left-4 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover/q:opacity-100 z-10 bg-white rounded-full p-1"><Trash2 size={16}/></button>
-                                <div className="mb-6">
-                                  <ExpandableField 
-                                    label={`שאלה ${i+1}`}
-                                    value={q.text} 
-                                    onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].text = text; setDraftMaterial(prev => ({...prev, questions: newQs})); }} 
-                                    placeholder="כתוב את השאלה כאן..." 
-                                    isTextarea
-                                    subject={currentContextSubject}
-                                  />
-                                </div>
-                                {q.type === 'OPEN' ? (
-                                  <div className="space-y-4">
-                                     {draftMaterial.autoGradeByAI && (
-                                       <ExpandableField 
-                                        label="תשובת מודל"
-                                        value={q.modelAnswer || ''} 
-                                        onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].modelAnswer = text; setDraftMaterial(prev => ({...prev, questions: newQs})); }} 
-                                        isTextarea
-                                        subject={currentContextSubject}
-                                      />
-                                     )}
-                                     {!draftMaterial.autoGradeByAI && (
-                                       <ExpandableField 
-                                        label="הסבר פתרון (אופציונלי)"
-                                        value={q.explanation || ''} 
-                                        onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].explanation = text; setDraftMaterial(prev => ({...prev, questions: newQs})); }} 
-                                        isTextarea
-                                        subject={currentContextSubject}
-                                      />
-                                     )}
-                                  </div>
-                                ) : (
-                                  <div className="space-y-6">
-                                    <div className={`grid gap-4 transition-all duration-300 ${anyOptionExpanded ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
-                                      {q.options && q.options.map((opt, oi) => (
-                                        <div key={oi} className={`flex items-start gap-3 p-3 rounded-2xl border-2 transition-all ${q.correctIndex === oi ? 'border-green-500 bg-green-50' : 'border-gray-50'} ${expandedOptionMap[`${q.id}-${oi}`] ? 'col-span-full' : ''}`}>
-                                          <input type="radio" className="mt-4" checked={q.correctIndex === oi} onChange={() => { const newQs = [...draftMaterial.questions!]; newQs[i].correctIndex = oi; setDraftMaterial(prev => ({...prev, questions: newQs})); }} />
-                                          <div className="flex-1">
-                                            <ExpandableField 
-                                              value={opt} 
-                                              onToggle={(expanded) => setExpandedOptionMap(prev => ({...prev, [`${q.id}-${oi}`]: expanded}))}
-                                              onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].options[oi] = text; setDraftMaterial(prev => ({...prev, questions: newQs})); }} 
-                                              placeholder={`אופציה ${oi+1}`} 
-                                              subject={currentContextSubject}
-                                            />
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <ExpandableField 
-                                      label="הסבר פתרון (אופציונלי)"
-                                      value={q.explanation || ''} 
-                                      onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].explanation = text; setDraftMaterial(prev => ({...prev, questions: newQs})); }} 
-                                      isTextarea
-                                      subject={currentContextSubject}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <RichEditor 
-                        value={block.content || ''} 
-                        onChange={content => {
-                          const newPages = [...(draftMaterial.pages || [])];
-                          newPages[activePageIndex].blocks[bIndex] = { ...newPages[activePageIndex].blocks[bIndex], content };
-                          setDraftMaterial(prev => ({...prev, pages: newPages}));
-                        }} 
-                        placeholder={isAssignment ? "כתוב כאן את הוראות המטלה והמשימות לתלמידים..." : "כתוב כאן את תוכן התוכן שיוצג לתלמידים..."} 
-                        showGuide={true}
-                        subject={currentContextSubject}
-                        stickyOffset="top-0"
-                      />
-                    )}
-                  </div>
-                  {isAdvancedMode && (!showBlockTypeSelector || activeBlockIndex !== bIndex) && (
-                    <button onClick={() => {
-                        setActivePageIndexForBlock(activePageIndex);
-                        setActiveBlockIndex(bIndex);
-                        setShowBlockTypeSelector(true);
-                      }}
-                      className="w-full py-2 flex items-center justify-center text-gray-300 hover:text-primary transition-all"
-                    >
-                      <Plus size={20} />
-                    </button>
-                  )}
-                  {isAdvancedMode && renderBlockTypeSelector(bIndex)}
-                </div>
-              ))}
+              
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => {
+                const { active, over } = event;
+                if (active.id !== over?.id) {
+                  const newPages = [...(draftMaterial.pages || [])];
+                  const blocks = newPages[activePageIndex].blocks;
+                  const oldIndex = blocks.findIndex(b => b.id === active.id);
+                  const newIndex = blocks.findIndex(b => b.id === over!.id);
+                  newPages[activePageIndex].blocks = arrayMove(blocks, oldIndex, newIndex);
+                  setDraftMaterial(prev => ({ ...prev, pages: newPages }));
+                }
+              }}>
+                <SortableContext items={draftMaterial.pages && draftMaterial.pages[activePageIndex] ? draftMaterial.pages[activePageIndex].blocks.map(b => b.id) : []} strategy={horizontalListSortingStrategy}>
+                  {draftMaterial.pages && draftMaterial.pages[isAdvancedMode ? activePageIndex : 0] && (isAdvancedMode ? draftMaterial.pages[activePageIndex].blocks : draftMaterial.pages[0].blocks).filter(b => !!b).map((block, bIndex) => (
+                    <SortableBlock 
+                      key={block.id}
+                      block={block}
+                      bIndex={bIndex}
+                      isAdvancedMode={isAdvancedMode}
+                      activePageIndex={isAdvancedMode ? activePageIndex : 0}
+                      draftMaterial={draftMaterial}
+                      setDraftMaterial={setDraftMaterial}
+                      getHebrewBlockType={getHebrewBlockType}
+                      addBlock={addBlock}
+                      currentContextSubject={currentContextSubject}
+                      expandedOptionMap={expandedOptionMap}
+                      setExpandedOptionMap={setExpandedOptionMap}
+                      gameType={gameType}
+                      setGameType={setGameType}
+                      gameContent={gameContent}
+                      setGameContent={setGameContent}
+                      userGenerationPrompt={userGenerationPrompt}
+                      setUserGenerationPrompt={setUserGenerationPrompt}
+                      loading={loading}
+                      setLoading={setLoading}
+                      detectSubjectAI={detectSubjectAI}
+                      generateGameContent={generateGameContent}
+                      currentContextGrade={currentContextGrade}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
-
-            {isFileOnly && (
-                <div className="bg-white p-20 rounded-[3rem] border-4 border-dashed border-gray-100 text-center flex flex-col items-center justify-center space-y-6 mt-6 relative group">
-                    {isAdvancedMode && <button onClick={() => setDraftMaterial(prev => ({...prev, type: 'SUMMARY'}))} className="absolute top-6 left-6 text-gray-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 font-bold text-xs flex items-center gap-1"><Trash2 size={16}/> מחק בלוק קובץ</button>}
-                    <div className="bg-blue-50 p-8 rounded-full text-blue-500"><Upload size={64}/></div>
-                    <button onClick={() => fileInputRef.current?.click()} className="bg-gray-900 text-white px-12 py-4 rounded-2xl font-black text-xl shadow-xl hover:bg-black transition-all">בחר קובץ להעלאה</button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                </div>
-            )}
-            
-            {isGame && (
-              <div className="space-y-8 mt-6 relative group bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                {isAdvancedMode && <button onClick={() => setDraftMaterial(prev => ({...prev, type: 'SUMMARY'}))} className="absolute top-6 left-6 text-gray-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 font-bold text-xs flex items-center gap-1"><Trash2 size={16}/> מחק בלוק משחק</button>}
-                <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
-                  <h3 className="font-black text-gray-800 mb-6">הגדרות משחק</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-                    {[
-                      { id: 'MEMORY', label: 'משחק זיכרון', icon: Brain },
-                      { id: 'WHEEL', label: 'גלגל מזל', icon: Target },
-                      { id: 'TRIVIA', label: 'שעשעון טלוויזיה', icon: HelpCircle },
-                      { id: 'WORD_SEARCH', label: 'תפזורת', icon: Search },
-                      { id: 'HANGMAN', label: 'איש תלוי', icon: Dices },
-                    ].map(t => (
-                      <button 
-                        key={t.id}
-                        onClick={() => setGameType(t.id as GameType)}
-                        className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${gameType === t.id ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-50 text-gray-400 hover:border-gray-200'}`}
-                      >
-                        <t.icon size={24} />
-                        <span className="font-black text-[10px]">{t.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <button 
-                    onClick={async () => {
-                      if (!draftMaterial.title) {
-                        alert("נא להזין כותרת לפני ייצור תוכן המשחק");
-                        return;
-                      }
-                      setLoading(true);
-                      try {
-                        const detectedSub = currentContextSubject || await detectSubjectAI(draftMaterial.title);
-                        const effectiveGrade = (currentContextGrade as Grade) || Grade.GRADE_10;
-                        const content = await generateGameContent(detectedSub, effectiveGrade, gameType, draftMaterial.title, userGenerationPrompt);
-                        setGameContent(content);
-                      } catch (e) {
-                        alert("שגיאה בייצור תוכן המשחק");
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    className="w-full p-6 bg-purple-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 transition-all shadow-lg"
-                  >
-                    <Sparkles size={18} />
-                    <span>ייצר תוכן למשחק עם AI</span>
-                  </button>
-                </div>
-
-                {gameContent && (
-                  <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 animate-fade-in">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="font-black text-gray-800">תוכן המשחק שנוצר</h3>
-                      <button onClick={() => setGameContent(null)} className="text-red-500 text-xs font-bold">נקה תוכן</button>
-                    </div>
-                    <div className="bg-gray-900 p-6 rounded-2xl text-left font-mono text-xs overflow-x-auto text-green-400" dir="ltr">
-                      <pre>{JSON.stringify(gameContent, null, 2)}</pre>
-                    </div>
-                    <p className="mt-4 text-xs text-gray-400 font-medium">התוכן נוצר באופן אוטומטי על ידי AI ויוצג לתלמידים כמשחק אינטראקטיבי.</p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

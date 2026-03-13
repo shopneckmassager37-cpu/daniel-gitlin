@@ -15,6 +15,7 @@ import {
 interface LatexRendererProps {
   text: string;
   className?: string;
+  inline?: boolean;
 }
 
 // --- Interactive Artifact Patterns ---
@@ -699,7 +700,7 @@ const AnalyticDisplay = ({ objects, viewRange, showGrid, showNumbers }: { object
   );
 };
 
-const LatexRenderer: React.FC<LatexRendererProps> = ({ text, className = "" }) => {
+const LatexRenderer: React.FC<LatexRendererProps> = ({ text, className = "", inline = false }) => {
   const processedText = useMemo(() => {
     if (!text) return '';
     const replacements: Record<string, string> = { '\\[': '$$', '\\]': '$$', '\\(': '$', '\\)': '$' };
@@ -716,7 +717,7 @@ const LatexRenderer: React.FC<LatexRendererProps> = ({ text, className = "" }) =
         components={{
           h1: ({ children }) => <h1 className="text-3xl font-black mt-8 mb-6 text-gray-900 border-b-4 border-primary/20 pb-3 inline-block">{children}</h1>,
           h2: ({ children }) => <h2 className="text-2xl font-black mt-10 mb-5 text-gray-800 flex items-center gap-2 before:content-[''] before:w-1.5 before:h-8 before:bg-primary before:rounded-full">{children}</h2>,
-          p: ({ children }) => <div className="mb-5 text-gray-700 leading-loose text-lg font-normal">{children}</div>,
+          p: ({ children }) => inline ? <span className="inline-block">{children}</span> : <div className="mb-5 text-gray-700 leading-loose text-lg font-normal">{children}</div>,
           ul: ({ children }) => <ul className="space-y-3 my-6 pr-6 list-disc list-outside text-lg text-gray-700 font-normal">{children}</ul>,
           ol: ({ children }) => <ol className="space-y-3 my-6 pr-6 list-decimal list-outside text-lg text-gray-700 font-normal">{children}</ol>,
           li: ({ children }) => <li className="leading-relaxed text-lg text-gray-700 font-normal">{children}</li>,

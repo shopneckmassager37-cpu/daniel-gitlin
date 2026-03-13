@@ -496,75 +496,96 @@ const PracticeArea: React.FC<PracticeAreaProps> = ({
 
   if (questions.length === 0) {
     return (
-      <div className="space-y-6 w-full max-w-4xl mx-auto">
+      <div className="w-full max-w-4xl mx-auto space-y-8 animate-fade-in">
         <div className="bg-white rounded-[3rem] shadow-xl p-10 md:p-16 border border-gray-100 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50" />
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-50 rounded-full -ml-12 -mb-12 opacity-50" />
           
           <div className="text-center mb-12 relative">
              <div className="bg-blue-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-blue-600 shadow-sm rotate-3"><Settings2 size={40} /></div>
-             <h3 className="text-4xl font-black text-gray-900 mb-3">{isTeacher ? 'הכנת תוכן כיתתי' : 'הגדרת תרגול'}</h3>
+             <h3 className="text-4xl font-black text-gray-900 mb-3">{isTeacher ? 'הכנת תוכה כיתתי' : 'הגדרת תרגול'}</h3>
              <p className="text-gray-500 font-medium text-lg">{isTeacher ? 'הזן נושא לייצור שאלות ותוכן עבור התלמידים' : 'התאם את חווית הלמידה שלך'}</p>
           </div>
-          <div className="space-y-6">
-             <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">{isTeacher ? 'נושא התוכן לכיתה' : 'נושא התרגול (אופציונלי)'}</label>
-                <div className="flex gap-2">
-                   <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="לדוגמה: שברים, המהפכה הצרפתית..." className="flex-1 p-4 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-primary focus:bg-white outline-none transition-all" />
+          
+          <div className="space-y-10">
+             <div className="bg-gray-50/50 p-8 rounded-[2rem] border-2 border-dashed border-gray-100">
+                <label className="block text-sm font-black text-gray-700 mb-4 uppercase tracking-widest">{isTeacher ? 'נושא התוכן לכיתה' : 'על מה נתרגל היום?'}</label>
+                <div className="flex gap-3">
+                   <input 
+                     type="text" 
+                     value={topic} 
+                     onChange={(e) => setTopic(e.target.value)} 
+                     placeholder="לדוגמה: שברים, המהפכה הצרפתית..." 
+                     className="flex-1 p-5 bg-white border-2 border-gray-100 rounded-2xl focus:border-primary outline-none transition-all text-lg font-medium" 
+                   />
                    <button 
                      onClick={() => fileInputRef.current?.click()}
-                     className={`p-4 rounded-xl border-2 transition-all flex items-center justify-center ${attachment ? 'border-primary bg-blue-50 text-primary' : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200'}`}
+                     className={`p-5 rounded-2xl border-2 transition-all flex items-center justify-center shadow-sm ${attachment ? 'border-primary bg-blue-50 text-primary' : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'}`}
                      title="צרף קובץ (תמונה)"
                    >
-                     <Paperclip size={24} />
+                     <Paperclip size={28} />
                    </button>
                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
                 </div>
                 {attachment && (
-                  <div className="mt-3 flex items-center gap-3 p-2 bg-blue-50 rounded-xl border border-blue-100 animate-slide-up">
-                     <div className="w-12 h-12 rounded-lg overflow-hidden border border-white shadow-sm">
+                  <div className="mt-4 flex items-center gap-4 p-3 bg-blue-50 rounded-2xl border border-blue-100 animate-slide-up">
+                     <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-white shadow-sm">
                        <img src={attachment.preview} alt="preview" className="w-full h-full object-cover" />
                      </div>
                      <div className="flex-1 min-w-0">
                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">קובץ מצורף</p>
-                       <p className="text-xs font-bold text-blue-900 truncate">{attachment.file.name}</p>
+                       <p className="text-sm font-bold text-blue-900 truncate">{attachment.file.name}</p>
                      </div>
                      <button onClick={removeAttachment} className="p-2 text-blue-400 hover:text-red-500 transition-colors">
-                       <X size={18} />
+                       <X size={20} />
                      </button>
                   </div>
                 )}
              </div>
-             
-             {!isTeacher && (
-                <div className="grid grid-cols-2 gap-4">
-                   <button onClick={() => setMode('PRACTICE')} className={`p-4 rounded-xl border-2 text-center transition-all ${mode === 'PRACTICE' ? 'border-primary bg-blue-50 text-primary' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'}`}>
-                       <BrainCircuit className="mx-auto mb-2" />
-                       <div className="font-bold">תרגול רגיל</div>
-                   </button>
-                   <button onClick={() => setMode('TEST')} className={`p-4 rounded-xl border-2 text-center transition-all ${mode === 'TEST' ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'}`}>
-                       <FileText className="mx-auto mb-2" />
-                       <div className="font-bold">מצב מבחן</div>
-                   </button>
-                </div>
-             )}
 
-             <div>
-                <div className="flex justify-between mb-2">
-                    <label className="text-sm font-bold text-gray-700">מספר שאלות</label>
-                    <span className="text-sm font-bold text-primary bg-blue-50 px-2 rounded">{questionCount}</span>
-                </div>
-                <input type="range" min="5" max="20" step="5" value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary" />
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+               {!isTeacher && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-black text-gray-700 mb-4 uppercase tracking-widest">סוג הפעילות</label>
+                    <div className="grid grid-cols-2 gap-4">
+                       <button onClick={() => setMode('PRACTICE')} className={`p-6 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-2 ${mode === 'PRACTICE' ? 'border-primary bg-blue-50 text-primary shadow-md' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'}`}>
+                           <BrainCircuit size={28} />
+                           <div className="font-black">תרגול רגיל</div>
+                       </button>
+                       <button onClick={() => setMode('TEST')} className={`p-6 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-2 ${mode === 'TEST' ? 'border-indigo-500 bg-indigo-50 text-indigo-600 shadow-md' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'}`}>
+                           <FileText size={28} />
+                           <div className="font-black">מצב מבחן</div>
+                       </button>
+                    </div>
+                  </div>
+               )}
+
+               <div>
+                  <label className="block text-sm font-black text-gray-700 mb-4 uppercase tracking-widest">מספר שאלות</label>
+                  <div className="grid grid-cols-4 gap-3">
+                    {[5, 10, 15, 20].map((count) => (
+                      <button
+                        key={count}
+                        onClick={() => setQuestionCount(count)}
+                        className={`py-4 rounded-2xl font-black text-sm transition-all border-2 ${questionCount === count ? 'bg-primary text-white border-primary shadow-lg shadow-blue-200' : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'}`}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+               </div>
+               
+               <div>
+                  <label className="block text-sm font-black text-gray-700 mb-4 uppercase tracking-widest">רמת קושי</label>
+                  <div className="flex gap-4">
+                      <button onClick={() => setDifficulty('MEDIUM')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${difficulty === 'MEDIUM' ? 'bg-green-100 text-green-700 ring-2 ring-green-500 ring-offset-2' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>רגיל</button>
+                      <button onClick={() => setDifficulty('HARD')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${difficulty === 'HARD' ? 'bg-red-100 text-red-700 ring-2 ring-red-500 ring-offset-2' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>מתקדם</button>
+                  </div>
+               </div>
              </div>
-             <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">רמת קושי</label>
-                <div className="flex gap-3">
-                    <button onClick={() => setDifficulty('MEDIUM')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${difficulty === 'MEDIUM' ? 'bg-green-100 text-green-700 ring-2 ring-green-500 ring-offset-2' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>רגיל</button>
-                    <button onClick={() => setDifficulty('HARD')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${difficulty === 'HARD' ? 'bg-red-100 text-red-700 ring-2 ring-red-500 ring-offset-2' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>מתקדם</button>
-                </div>
-             </div>
-             <button onClick={() => handleGenerate()} disabled={isTeacher && !topic.trim()} className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-30">
-                {isTeacher ? <Sparkles size={20} className="text-yellow-400" /> : <Play size={20} />} 
+
+             <button onClick={() => handleGenerate()} disabled={isTeacher && !topic.trim()} className="w-full bg-gray-900 text-white py-6 rounded-2xl font-black text-xl shadow-2xl hover:bg-black hover:-translate-y-1 transition-all flex items-center justify-center gap-3 mt-4 disabled:opacity-30 active:scale-95">
+                {isTeacher ? <Sparkles size={28} className="text-yellow-400" /> : <Play size={28} />} 
                 {isTeacher ? 'ייצר מערך שאלות עם AI' : `התחל ${mode === 'TEST' ? 'מבחן' : 'תרגול'}`}
              </button>
           </div>
@@ -578,8 +599,8 @@ const PracticeArea: React.FC<PracticeAreaProps> = ({
   const currentOpenFeedback = openQuestionFeedback[currentIndex];
 
   return (
-    <div className="w-full space-y-6">
-      <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+    <div className="w-full max-w-5xl mx-auto space-y-8">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100">
         <div className="bg-gray-50 p-4 flex justify-between items-center border-b border-gray-200">
             <div className="flex items-center gap-4">
                 <span className="font-bold text-gray-700">{isTeacher ? 'סקירת תוכן לייצור' : (mode === 'TEST' ? 'מבחן' : 'תרגול')}</span>
@@ -588,10 +609,10 @@ const PracticeArea: React.FC<PracticeAreaProps> = ({
             <div className="text-sm font-bold text-gray-500">שאלה {currentIndex + 1} / {questions.length}</div>
         </div>
         <div className="h-1.5 bg-gray-100 w-full"><div className={`h-full transition-all duration-500 ${isTeacher ? 'bg-indigo-500' : (mode === 'TEST' ? 'bg-indigo-500' : 'bg-primary')}`} style={{ width: `${progress}%` }} /></div>
-        <div className="p-6 md:p-10">
-          <div className="text-xl md:text-2xl font-bold text-gray-800 mb-8 leading-relaxed"><LatexRenderer text={currentQ.text} /></div>
+        <div className="p-8 md:p-14">
+          <div className="text-2xl md:text-3xl font-black text-gray-900 mb-10 leading-relaxed text-center"><LatexRenderer text={currentQ.text} /></div>
           
-          <div className="mb-8">
+          <div className="mb-10">
             {currentQ.type === 'OPEN' ? (
               <div className="space-y-4">
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest text-right">{isTeacher ? 'תצוגה מקדימה למקום תשובה:' : 'התשובה שלך:'}</label>
@@ -610,7 +631,7 @@ const PracticeArea: React.FC<PracticeAreaProps> = ({
                 )}
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-4">
                 {currentQ.options.map((option, idx) => {
                   let btnClass = "border-2 border-gray-200 hover:bg-gray-50";
                   const isSelected = userAnswers[currentIndex] === idx;
@@ -624,10 +645,10 @@ const PracticeArea: React.FC<PracticeAreaProps> = ({
                   }
 
                   return (
-                    <button key={idx} onClick={() => handleSelectAnswer(idx)} className={`w-full p-4 rounded-xl text-right transition-all duration-200 font-medium ${btnClass}`}>
+                    <button key={idx} onClick={() => handleSelectAnswer(idx)} className={`w-full p-5 rounded-2xl text-right transition-all duration-200 font-bold text-lg ${btnClass}`}>
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-sm font-bold shrink-0 ${(mode === 'PRACTICE' && isAnswerChecked && idx === currentQ.correctIndex) || (isSelected && (mode === 'TEST' || !isAnswerChecked)) ? 'border-transparent bg-primary text-white' : (mode === 'PRACTICE' && isAnswerChecked && isSelected && idx !== currentQ.correctIndex) ? 'border-red-50 bg-red-500 text-white' : 'border-current'}`}>{idx + 1}</div>
-                        <LatexRenderer text={option} />
+                        <LatexRenderer text={option} inline />
                       </div>
                     </button>
                   );
@@ -637,9 +658,9 @@ const PracticeArea: React.FC<PracticeAreaProps> = ({
           </div>
 
           {mode === 'PRACTICE' && isAnswerChecked && (
-            <div className={`mb-6 p-6 rounded-2xl border animate-fade-in ${currentQ.type === 'OPEN' ? (currentOpenFeedback?.score && currentOpenFeedback.score >= 80 ? 'bg-green-50 border-green-200' : currentOpenFeedback?.score && currentOpenFeedback.score >= 40 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200') : (userAnswers[currentIndex] === currentQ.correctIndex ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')}`}>
-              <div className="flex items-start gap-4">
-                <div className={`p-2 rounded-xl shrink-0 ${currentQ.type === 'OPEN' ? (currentOpenFeedback?.score && currentOpenFeedback.score >= 80 ? 'bg-green-100 text-green-600' : currentOpenFeedback?.score && currentOpenFeedback.score >= 40 ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600') : (userAnswers[currentIndex] === currentQ.correctIndex ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}`}>
+            <div className={`mb-8 p-8 rounded-[2.5rem] border-2 animate-fade-in shadow-lg ${currentQ.type === 'OPEN' ? (currentOpenFeedback?.score && currentOpenFeedback.score >= 80 ? 'bg-green-50 border-green-200' : currentOpenFeedback?.score && currentOpenFeedback.score >= 40 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200') : (userAnswers[currentIndex] === currentQ.correctIndex ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')}`}>
+              <div className="flex items-start gap-6">
+                <div className={`p-4 rounded-2xl shrink-0 shadow-sm ${currentQ.type === 'OPEN' ? (currentOpenFeedback?.score && currentOpenFeedback.score >= 80 ? 'bg-green-100 text-green-600' : currentOpenFeedback?.score && currentOpenFeedback.score >= 40 ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600') : (userAnswers[currentIndex] === currentQ.correctIndex ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}`}>
                     {currentQ.type === 'OPEN' ? <Award size={24} /> : <Lightbulb size={24} />}
                 </div>
                 <div className="flex-1">
@@ -669,7 +690,7 @@ const PracticeArea: React.FC<PracticeAreaProps> = ({
                     )}
                     <div className="text-sm opacity-80 pt-2 border-t border-current/10">
                         <span className="font-bold">הסבר פתרון: </span>
-                        <LatexRenderer text={currentQ.explanation} className="inline" />
+                        <LatexRenderer text={currentQ.explanation} inline className="inline" />
                     </div>
                   </div>
                 </div>

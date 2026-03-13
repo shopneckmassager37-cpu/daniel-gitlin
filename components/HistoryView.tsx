@@ -55,7 +55,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onBack, onOpenSummar
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8 animate-fade-in pb-20">
+    <div className="w-full mx-auto p-4 md:p-8 animate-fade-in flex flex-col min-h-[60vh]" dir="rtl">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -177,7 +177,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onBack, onOpenSummar
       )}
 
       {history.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-gray-100">
+        <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-gray-200 w-full max-w-none flex flex-col items-center justify-center px-4">
           <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <Clock className="text-gray-400" size={40} />
           </div>

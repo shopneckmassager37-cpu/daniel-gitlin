@@ -1,5 +1,7 @@
 import { User, Classroom, HistoryItem, UserStats, UserRole, Notification, LearningGame } from '../types';
 
+const getApiUrl = (path: string) => `${window.location.origin}${path}`;
+
 const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3, backoff = 1000): Promise<Response> => {
   try {
     const response = await fetch(url, options);
@@ -21,7 +23,7 @@ export const dbService = {
   // Users
   async getUser(userId: string): Promise<User | null> {
     try {
-      const response = await fetchWithRetry(`/api/users/${encodeURIComponent(userId)}`);
+      const response = await fetchWithRetry(getApiUrl(`/api/users/${encodeURIComponent(userId)}`));
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
@@ -32,7 +34,7 @@ export const dbService = {
 
   async saveUser(user: User): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/users`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/users`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
@@ -46,7 +48,7 @@ export const dbService = {
   // Classrooms
   async getClassrooms(userId: string): Promise<Classroom[]> {
     try {
-      const response = await fetchWithRetry(`/api/classrooms?userId=${encodeURIComponent(userId)}`);
+      const response = await fetchWithRetry(getApiUrl(`/api/classrooms?userId=${encodeURIComponent(userId)}`));
       if (!response.ok) return [];
       return await response.json();
     } catch (error) {
@@ -57,7 +59,7 @@ export const dbService = {
 
   async getClassroomByCode(code: string): Promise<Classroom | null> {
     try {
-      const response = await fetchWithRetry(`/api/classrooms?code=${encodeURIComponent(code)}`);
+      const response = await fetchWithRetry(getApiUrl(`/api/classrooms?code=${encodeURIComponent(code)}`));
       if (!response.ok) return null;
       const data = await response.json();
       return data.length > 0 ? data[0] : null;
@@ -69,7 +71,7 @@ export const dbService = {
 
   async saveClassroom(classroom: Classroom): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/classrooms`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/classrooms`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(classroom)
@@ -82,7 +84,7 @@ export const dbService = {
 
   async deleteClassroom(id: string): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/classrooms/${id}`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/classrooms/${id}`), {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Failed to delete classroom');
@@ -93,7 +95,7 @@ export const dbService = {
 
   async syncClassrooms(classrooms: Classroom[]): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/classrooms/sync`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/classrooms/sync`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(classrooms)
@@ -107,7 +109,7 @@ export const dbService = {
   // Notifications
   async getNotifications(userId: string): Promise<Notification[]> {
     try {
-      const response = await fetchWithRetry(`/api/notifications?userId=${encodeURIComponent(userId)}`);
+      const response = await fetchWithRetry(getApiUrl(`/api/notifications?userId=${encodeURIComponent(userId)}`));
       if (!response.ok) return [];
       return await response.json();
     } catch (error) {
@@ -118,7 +120,7 @@ export const dbService = {
 
   async saveNotification(notification: Notification): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/notifications`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/notifications`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(notification)
@@ -131,7 +133,7 @@ export const dbService = {
 
   async markNotificationRead(id: string): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/notifications/${id}`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/notifications/${id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isRead: true })
@@ -144,7 +146,7 @@ export const dbService = {
 
   async markAllNotificationsRead(userId: string): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/notifications/mark-all-read`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/notifications/mark-all-read`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -158,7 +160,7 @@ export const dbService = {
   // History
   async getHistory(userId: string): Promise<HistoryItem[]> {
     try {
-      const response = await fetchWithRetry(`/api/history?userId=${encodeURIComponent(userId)}`);
+      const response = await fetchWithRetry(getApiUrl(`/api/history?userId=${encodeURIComponent(userId)}`));
       if (!response.ok) return [];
       return await response.json();
     } catch (error) {
@@ -169,7 +171,7 @@ export const dbService = {
 
   async saveHistoryItem(userId: string, item: HistoryItem): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/history`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/history`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, item })
@@ -182,7 +184,7 @@ export const dbService = {
 
   async deleteHistoryItem(id: string): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/history/${id}`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/history/${id}`), {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Failed to delete history item');
@@ -193,7 +195,7 @@ export const dbService = {
 
   async deleteAllHistory(userId: string): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/history/user/${userId}`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/history/user/${userId}`), {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Failed to delete all history');
@@ -205,7 +207,7 @@ export const dbService = {
   // Stats
   async getStats(userId: string): Promise<UserStats[]> {
     try {
-      const response = await fetchWithRetry(`/api/stats?userId=${encodeURIComponent(userId)}`);
+      const response = await fetchWithRetry(getApiUrl(`/api/stats?userId=${encodeURIComponent(userId)}`));
       if (!response.ok) return [];
       return await response.json();
     } catch (error) {
@@ -216,7 +218,7 @@ export const dbService = {
 
   async saveStats(userId: string, stats: UserStats[]): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/stats`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/stats`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, stats })
@@ -230,7 +232,7 @@ export const dbService = {
   // Games
   async getGames(userId: string): Promise<LearningGame[]> {
     try {
-      const response = await fetchWithRetry(`/api/games?userId=${encodeURIComponent(userId)}`);
+      const response = await fetchWithRetry(getApiUrl(`/api/games?userId=${encodeURIComponent(userId)}`));
       if (!response.ok) return [];
       return await response.json();
     } catch (error) {
@@ -241,7 +243,7 @@ export const dbService = {
 
   async saveGame(game: LearningGame): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/games`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/games`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(game)
@@ -254,7 +256,7 @@ export const dbService = {
 
   async leaveClassroom(classId: string, userId: string): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/classrooms/${classId}/leave`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/classrooms/${classId}/leave`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -267,7 +269,7 @@ export const dbService = {
 
   async deleteUser(userId: string): Promise<void> {
     try {
-      const response = await fetchWithRetry(`/api/users/${userId}`, {
+      const response = await fetchWithRetry(getApiUrl(`/api/users/${userId}`), {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Failed to delete user');

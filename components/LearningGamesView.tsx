@@ -7,7 +7,8 @@ import {
   RotateCcw, ChevronLeft, ArrowRight, Star, 
   Dices, Target, HelpCircle, Brain, 
   Search, Trash2, Plus, Users, Crown,
-  Clock, CheckCircle2, XCircle, Sparkles
+  Clock, CheckCircle2, XCircle, Sparkles,
+  Loader2, Timer, Grid, Hash, LayoutGrid, MousePointer2
 } from 'lucide-react';
 import LatexRenderer from './LatexRenderer.tsx';
 
@@ -84,9 +85,14 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
       };
 
       setActiveGame(newGame);
+      setGames(prev => {
+        const newGames = [newGame, ...prev];
+        localStorage.setItem('lumdim_learning_games_v1', JSON.stringify(newGames));
+        return newGames;
+      });
+      
       if (isTeacher) {
         dbService.saveGame(newGame).catch(err => console.error("Failed to save game to Supabase:", err));
-        setGames(prev => [newGame, ...prev]);
       }
     } catch (e) {
       alert("שגיאה בייצור המשחק. נסה שוב.");
@@ -103,7 +109,8 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
       gameType: game.type,
       score,
       timeSeconds,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      gameContent: game.content
     };
 
     const newHistory = [result, ...gameHistory];
@@ -218,8 +225,8 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
       {activeGame ? (
         <GameRunner 
           game={activeGame} 
-          onFinish={(score) => {
-            saveGameResult(activeGame, score);
+          onFinish={(score, time) => {
+            saveGameResult(activeGame, score, time);
             setActiveGame(null);
           }} 
           onCancel={() => setActiveGame(null)}
@@ -333,7 +340,24 @@ const LearningGamesView: React.FC<LearningGamesViewProps> = ({ user, subject, gr
                       <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ציון</div>
                     </div>
                     <button 
-                      onClick={() => setActiveGame(games.find(g => g.id === item.gameId) || null)}
+                      onClick={() => {
+                        const existingGame = games.find(g => g.id === item.gameId);
+                        if (existingGame) {
+                          setActiveGame(existingGame);
+                        } else if (item.gameContent) {
+                          setActiveGame({
+                            id: item.gameId,
+                            title: item.gameTitle,
+                            type: item.gameType,
+                            content: item.gameContent,
+                            subject: subject,
+                            grade: grade,
+                            timestamp: item.timestamp
+                          });
+                        } else {
+                          alert("המשחק לא נמצא במערכת.");
+                        }
+                      }}
                       className="p-3 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:border-indigo-100 transition-all"
                     >
                       <RotateCcw size={18} />
@@ -432,7 +456,7 @@ export const GameRunner: React.FC<{ game: LearningGame; onFinish: (score: number
 
   const containerClasses = isFullscreen 
     ? "fixed inset-0 z-[9999] bg-white flex flex-col"
-    : "bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-gray-100 min-h-[600px] flex flex-col w-full";
+    : "bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-gray-100 flex-1 flex flex-col w-full min-h-[600px]";
 
   if (gameState === 'START') {
     return (
@@ -550,75 +574,9 @@ export const GameRunner: React.FC<{ game: LearningGame; onFinish: (score: number
           )}
         </div>
       </div>
-      <div className="flex-1 flex flex-col items-center justify-center overflow-hidden relative">
-        <div className="w-full h-full flex flex-col items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center overflow-y-auto relative custom-scrollbar">
+        <div className="w-full flex-1 flex flex-col items-center justify-center">
           {renderGame()}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const MatchingGame: React.FC<{ content: any[]; onFinish: (score: number) => void }> = ({ content, onFinish }) => {
-  const [leftItems, setLeftItems] = useState<any[]>([]);
-  const [rightItems, setRightItems] = useState<any[]>([]);
-  const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
-  const [selectedRight, setSelectedRight] = useState<number | null>(null);
-  const [matches, setMatches] = useState<[number, number][]>([]);
-
-  useEffect(() => {
-    setLeftItems([...content].sort(() => Math.random() - 0.5));
-    setRightItems([...content].sort(() => Math.random() - 0.5));
-  }, [content]);
-
-  const handleMatch = (lIdx: number, rIdx: number) => {
-    if (leftItems[lIdx].id === rightItems[rIdx].id) {
-      const newMatches: [number, number][] = [...matches, [lIdx, rIdx]];
-      setMatches(newMatches);
-      if (newMatches.length === content.length) {
-        setTimeout(() => onFinish(100), 1000);
-      }
-    }
-    setSelectedLeft(null);
-    setSelectedRight(null);
-  };
-
-  return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-4 md:gap-8 items-stretch justify-center p-2 md:p-4">
-      <div className="flex-1 space-y-3 flex flex-col">
-        <h4 className="text-center font-black text-gray-400 mb-2 uppercase tracking-widest text-xs">מושגים</h4>
-        <div className="flex-1 flex flex-col gap-3">
-          {leftItems.map((item, idx) => (
-            <button 
-              key={idx}
-              disabled={matches.some(m => m[0] === idx)}
-              onClick={() => {
-                setSelectedLeft(idx);
-                if (selectedRight !== null) handleMatch(idx, selectedRight);
-              }}
-              className={`flex-1 w-full p-4 rounded-2xl font-black text-lg md:text-3xl transition-all border-4 ${matches.some(m => m[0] === idx) ? 'bg-green-50 border-green-200 text-green-300' : selectedLeft === idx ? 'bg-primary border-primary text-white shadow-lg scale-[1.02]' : 'bg-white border-gray-100 hover:border-primary/30'}`}
-            >
-              {item.text}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 space-y-3 flex flex-col">
-        <h4 className="text-center font-black text-gray-400 mb-2 uppercase tracking-widest text-xs">התאמות</h4>
-        <div className="flex-1 flex flex-col gap-3">
-          {rightItems.map((item, idx) => (
-            <button 
-              key={idx}
-              disabled={matches.some(m => m[1] === idx)}
-              onClick={() => {
-                setSelectedRight(idx);
-                if (selectedLeft !== null) handleMatch(selectedLeft, idx);
-              }}
-              className={`flex-1 w-full p-4 rounded-2xl font-black text-lg md:text-3xl transition-all border-4 ${matches.some(m => m[1] === idx) ? 'bg-green-50 border-green-200 text-green-300' : selectedRight === idx ? 'bg-primary border-primary text-white shadow-lg scale-[1.02]' : 'bg-white border-gray-100 hover:border-primary/30'}`}
-            >
-              {item.match}
-            </button>
-          ))}
         </div>
       </div>
     </div>
@@ -630,10 +588,12 @@ const MemoryGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matched, setMatched] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
-  const [showMatchMessage, setShowMatchMessage] = useState(false);
 
   useEffect(() => {
-    const deck = [...content.map(i => ({ id: i.id, text: i.text, type: 'Q' })), ...content.map(i => ({ id: i.id, text: i.match, type: 'A' }))];
+    const deck = [
+      ...content.map(i => ({ id: i.id, text: i.text, type: 'Q' })), 
+      ...content.map(i => ({ id: i.id, text: i.match, type: 'A' }))
+    ];
     setCards(deck.sort(() => Math.random() - 0.5));
   }, [content]);
 
@@ -647,54 +607,71 @@ const MemoryGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
       setMoves(m => m + 1);
       const [first, second] = newFlipped;
       if (cards[first].id === cards[second].id && cards[first].type !== cards[second].type) {
-        setShowMatchMessage(true);
         setTimeout(() => {
-          setMatched([...matched, first, second]);
+          setMatched(prev => [...prev, first, second]);
           setFlipped([]);
-          setShowMatchMessage(false);
           if (matched.length + 2 === cards.length) {
-            setTimeout(() => onFinish(Math.max(10, 100 - moves * 5)), 1000);
+            setTimeout(() => onFinish(Math.max(10, 100 - moves * 2)), 1000);
           }
-        }, 1000);
+        }, 600);
       } else {
-        setTimeout(() => setFlipped([]), 1000);
+        setTimeout(() => setFlipped([]), 1200);
       }
     }
   };
 
   return (
-    <div className="w-full h-full flex flex-col p-4">
-      <div className="flex justify-between items-center mb-6">
-        <div className="bg-indigo-50 px-6 py-2 rounded-full text-indigo-600 font-black text-sm">מהלכים: {moves}</div>
-        <div className="bg-green-50 px-6 py-2 rounded-full text-green-600 font-black text-sm">זוגות: {matched.length / 2} / {content.length}</div>
-      </div>
-      
-      {showMatchMessage && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="bg-green-500 text-white px-10 py-5 rounded-3xl font-black text-3xl shadow-2xl animate-bounce">
-            כל הכבוד! מצאת זוג! 🌟
+    <div className="w-full h-full flex flex-col p-4 max-w-5xl mx-auto">
+      <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
+            <RotateCcw size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">מהלכים</p>
+            <p className="font-black text-gray-900 text-xl">{moves}</p>
           </div>
         </div>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 flex-1 items-stretch">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
+            <Trophy size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">זוגות</p>
+            <p className="font-black text-gray-900 text-xl">{matched.length / 2} / {content.length}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 flex-1">
         {cards.map((card, idx) => {
           const isMatched = matched.includes(idx);
-          const isFlipped = flipped.includes(idx);
+          const isFlipped = flipped.includes(idx) || isMatched;
           
-          if (isMatched) return <div key={idx} className="aspect-square opacity-0" />;
-
           return (
             <div 
               key={idx} 
               onClick={() => handleFlip(idx)}
-              className={`aspect-square rounded-3xl flex items-center justify-center text-center p-6 cursor-pointer transition-all duration-500 preserve-3d shadow-2xl ${isFlipped ? 'bg-white border-8 border-indigo-500 scale-105' : 'bg-indigo-600 text-white hover:scale-105 active:scale-95'}`}
+              className="perspective-1000 aspect-square cursor-pointer group"
             >
-              {isFlipped ? (
-                <span className="font-black text-indigo-900 text-lg md:text-3xl">{card.text}</span>
-              ) : (
-                <Brain size={64} className="opacity-50" />
-              )}
+              <div className={`relative w-full h-full transition-all duration-500 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                {/* Front (Hidden) */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl flex items-center justify-center shadow-xl backface-hidden border-4 border-white/20 group-hover:scale-[1.02] transition-transform">
+                  <Brain size={48} className="text-white/30" />
+                </div>
+                
+                {/* Back (Visible) */}
+                <div className="absolute inset-0 bg-white rounded-3xl flex items-center justify-center text-center p-4 shadow-xl backface-hidden rotate-y-180 border-4 border-indigo-100 overflow-hidden">
+                  <span className={`font-black text-gray-800 leading-tight ${card.text.length > 30 ? 'text-xs' : card.text.length > 15 ? 'text-sm' : 'text-base md:text-xl'}`}>
+                    {card.text}
+                  </span>
+                  {isMatched && (
+                    <div className="absolute top-2 right-2 text-green-500">
+                      <CheckCircle2 size={16} />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -717,12 +694,14 @@ const TriviaGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
     setIsCorrect(correct);
     
     let points = 100 / content.length;
+    let bonus = 0;
     if (correct && Math.random() > 0.7) {
       setShowBonus(true);
-      points += 10; // Bonus points
+      bonus = 10;
     }
     
-    if (correct) setScore(s => s + points);
+    const newScore = score + (correct ? points + bonus : 0);
+    setScore(newScore);
 
     setTimeout(() => {
       setShowBonus(false);
@@ -731,7 +710,7 @@ const TriviaGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
         setSelected(null);
         setIsCorrect(null);
       } else {
-        onFinish(Math.round(score + (correct ? points : 0)));
+        onFinish(Math.min(100, Math.round(newScore)));
       }
     }, 1500);
   };
@@ -739,32 +718,32 @@ const TriviaGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
   const q = content[currentIdx];
 
   return (
-    <div className="w-full h-full bg-slate-900 p-2 md:p-4 flex flex-col relative overflow-hidden">
+    <div className="w-full h-full bg-slate-900 p-4 md:p-8 flex flex-col relative overflow-hidden rounded-[3rem]">
       {/* TV Scanlines effect */}
       <div className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
       
-      <div className="relative z-20 flex-1 flex flex-col justify-center">
-        <div className="flex justify-between items-center mb-8">
-          <div className="bg-indigo-600/20 px-6 py-2 rounded-full border border-indigo-500/30">
-            <span className="text-indigo-400 font-black text-xs uppercase tracking-widest">שאלה {currentIdx + 1} / {content.length}</span>
+      <div className="relative z-20 flex-1 flex flex-col justify-center max-w-5xl mx-auto w-full">
+        <div className="flex justify-between items-center mb-12">
+          <div className="bg-indigo-600/20 px-8 py-3 rounded-full border border-indigo-500/30 backdrop-blur-sm">
+            <span className="text-indigo-400 font-black text-sm uppercase tracking-widest">שאלה {currentIdx + 1} / {content.length}</span>
           </div>
-          <div className="bg-amber-500/20 px-6 py-2 rounded-full border border-amber-500/30">
-            <span className="text-amber-400 font-black text-xs uppercase tracking-widest">נקודות: {Math.round(score)}</span>
+          <div className="bg-amber-500/20 px-8 py-3 rounded-full border border-amber-500/30 backdrop-blur-sm">
+            <span className="text-amber-400 font-black text-sm uppercase tracking-widest">נקודות: {Math.round(score)}</span>
           </div>
         </div>
 
-        <div className="text-center mb-12">
-          <h3 className="text-4xl md:text-7xl font-black text-white leading-tight drop-shadow-[0_0_20px_rgba(99,102,241,0.6)]">
-            <LatexRenderer text={q.question} />
+        <div className="text-center mb-10">
+          <h3 className="text-2xl md:text-4xl font-black text-white leading-tight drop-shadow-[0_0_20px_rgba(99,102,241,0.6)]">
+            <LatexRenderer text={q.question} inline />
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {q.options.map((opt: string, idx: number) => (
             <button 
               key={idx}
               onClick={() => handleAnswer(idx)}
-              className={`p-8 md:p-14 rounded-[3rem] font-black text-2xl md:text-5xl transition-all border-8 text-right flex items-center gap-10 group
+              className={`p-4 md:p-6 rounded-[2rem] font-black text-lg md:text-xl transition-all border-4 text-right flex items-center gap-4 group relative overflow-hidden
                 ${selected === idx 
                   ? (isCorrect ? 'bg-green-500 border-green-400 text-white shadow-[0_0_50px_rgba(34,197,94,0.7)] scale-105' : 'bg-red-500 border-red-400 text-white shadow-[0_0_50px_rgba(239,68,68,0.7)] scale-95') 
                   : selected !== null && idx === q.correct 
@@ -772,28 +751,30 @@ const TriviaGame: React.FC<{ content: any[]; onFinish: (score: number) => void }
                     : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-indigo-500 hover:bg-slate-700 hover:text-white hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] hover:scale-[1.02]'
                 }`}
             >
-              <div className={`w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center shrink-0 font-black text-3xl md:text-5xl
+              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 font-black text-lg md:text-xl
                 ${selected === idx ? 'bg-white/20' : 'bg-slate-700 group-hover:bg-indigo-600'}`}>
                 {String.fromCharCode(65 + idx)}
               </div>
-              <span className="flex-1"><LatexRenderer text={opt} /></span>
+              <span className="flex-1 text-sm md:text-base"><LatexRenderer text={opt} inline /></span>
             </button>
           ))}
         </div>
 
         {showBonus && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-ping">
-            <div className="bg-amber-500 text-white px-6 py-3 rounded-full font-black text-xl shadow-2xl border-2 border-white">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-bounce">
+            <div className="bg-amber-500 text-white px-10 py-5 rounded-[2rem] font-black text-3xl shadow-2xl border-4 border-white">
               בונוס! 🌟 +10
             </div>
           </div>
         )}
 
-        {isCorrect !== null && (
-          <div className={`mt-6 text-center animate-bounce font-black text-xl drop-shadow-lg ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-            {isCorrect ? 'נכון מאוד! 🎊' : 'אופס... לא נכון ❌'}
-          </div>
-        )}
+        <div className="h-20 flex items-center justify-center mt-8">
+          {isCorrect !== null && (
+            <div className={`text-center animate-fade-in font-black text-3xl drop-shadow-lg ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+              {isCorrect ? 'נכון מאוד! 🎊' : 'אופס... לא נכון ❌'}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -807,6 +788,9 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
   const [studentAnswer, setStudentAnswer] = useState('');
   const [feedback, setFeedback] = useState<any | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [totalScore, setTotalScore] = useState(0);
+  const [rounds, setRounds] = useState(0);
+  const maxRounds = 3;
 
   const spin = () => {
     if (spinning || showQuestion) return;
@@ -839,6 +823,8 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
       const { gradeOpenQuestion } = await import('../services/geminiService.ts');
       const res = await gradeOpenQuestion(result!, "תשובה מקיפה ומדויקת", studentAnswer);
       setFeedback(res);
+      setTotalScore(prev => prev + res.score);
+      setRounds(prev => prev + 1);
     } catch (e) {
       alert("שגיאה בבדיקת התשובה.");
     } finally {
@@ -851,17 +837,38 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
   ];
 
   return (
-    <div className="flex flex-col items-center w-full h-full p-2 justify-center">
+    <div className="flex flex-col items-center w-full h-full p-4 justify-center max-w-6xl mx-auto">
       {!showQuestion ? (
-        <>
-          <div className="relative w-[70vmin] h-[70vmin] mb-8 md:mb-12">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-6 z-20">
-              <div className="w-8 h-10 bg-gray-900 clip-path-needle shadow-lg"></div>
+        <div className="flex flex-col items-center animate-fade-in w-full">
+          <div className="flex justify-between w-full mb-8 bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                <RotateCcw size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">סיבוב</p>
+                <p className="font-black text-gray-900 text-2xl">{rounds} / {maxRounds}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600">
+                <Trophy size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">ניקוד מצטבר</p>
+                <p className="font-black text-gray-900 text-2xl">{Math.round(totalScore / (rounds || 1))}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative w-[65vmin] h-[65vmin] mb-12">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-8 z-20">
+              <div className="w-10 h-14 bg-gray-900 clip-path-needle shadow-2xl"></div>
               <style>{`.clip-path-needle { clip-path: polygon(50% 100%, 0 0, 100% 0); }`}</style>
             </div>
             
             <div 
-              className="w-full h-full rounded-full border-[16px] border-gray-900 shadow-[0_0_60px_rgba(0,0,0,0.3)] overflow-hidden transition-transform duration-[3000ms] cubic-bezier(0.15, 0, 0.15, 1) relative bg-gray-900"
+              className="w-full h-full rounded-full border-[20px] border-gray-900 shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden transition-transform duration-[3000ms] cubic-bezier(0.15, 0, 0.15, 1) relative bg-gray-900"
               style={{ transform: `rotate(${rotation}deg)` }}
             >
               <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -879,16 +886,16 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
                   
                   return (
                     <g key={idx}>
-                      <path d={pathData} fill={colors[idx % colors.length]} stroke="#000" strokeWidth="0.2" />
+                      <path d={pathData} fill={colors[idx % colors.length]} stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
                       <g transform={`rotate(${startAngle + angle / 2} 50 50)`}>
                         <text 
-                          x="50" y="20" 
+                          x="50" y="15" 
                           fill="white" 
-                          fontSize="4" 
+                          fontSize="3.5" 
                           fontWeight="900" 
                           textAnchor="middle" 
-                          transform="rotate(0 50 20)"
-                          className="select-none"
+                          transform="rotate(0 50 15)"
+                          className="select-none drop-shadow-md"
                         >
                           {((item.text || item).toString().length > 15) ? (item.text || item).toString().substring(0, 12) + '...' : (item.text || item)}
                         </text>
@@ -896,62 +903,80 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
                     </g>
                   );
                 })}
-                <circle cx="50" cy="50" r="8" fill="#111" stroke="#333" strokeWidth="1" />
-                <circle cx="50" cy="50" r="3" fill="#fff" />
+                <circle cx="50" cy="50" r="10" fill="#111" stroke="#333" strokeWidth="1" />
+                <circle cx="50" cy="50" r="4" fill="#fff" />
               </svg>
             </div>
           </div>
 
           <button 
             onClick={spin}
-            disabled={spinning}
-            className="group relative bg-gray-900 text-white px-20 py-8 rounded-[2.5rem] font-black text-4xl shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 overflow-hidden"
+            disabled={spinning || rounds >= maxRounds}
+            className="group relative bg-gray-900 text-white px-24 py-10 rounded-[3rem] font-black text-4xl shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <span className="relative z-10">{spinning ? 'מסתובב...' : 'סובב את הגלגל!'}</span>
+            <span className="relative z-10">{spinning ? 'מסתובב...' : rounds >= maxRounds ? 'המשחק הסתיים' : 'סובב את הגלגל!'}</span>
           </button>
-        </>
+          
+          {rounds >= maxRounds && (
+            <button 
+              onClick={() => onFinish(Math.round(totalScore / maxRounds))}
+              className="mt-8 text-primary font-black text-2xl hover:underline"
+            >
+              לחץ כאן לסיום וקבלת הציון
+            </button>
+          )}
+        </div>
       ) : (
-        <div className="w-full h-full bg-white p-6 md:p-12 rounded-[3rem] shadow-2xl border border-indigo-100 flex flex-col justify-center space-y-8 animate-fade-in">
-          <div className="text-center">
-            <div className="inline-block bg-indigo-100 text-indigo-600 px-10 py-4 rounded-full font-black text-xl mb-8">השאלה שלך:</div>
-            <h3 className="text-5xl md:text-8xl font-black text-gray-900 leading-tight">
-              <LatexRenderer text={result!} />
+        <div className="w-full h-full bg-white p-8 md:p-16 rounded-[4rem] shadow-2xl border border-indigo-50 flex flex-col justify-center space-y-12 animate-fade-in relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 opacity-50"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full -ml-32 -mb-32 opacity-50"></div>
+          
+          <div className="text-center relative z-10">
+            <div className="inline-flex items-center gap-3 bg-indigo-100 text-indigo-600 px-8 py-3 rounded-full font-black text-xl mb-6 shadow-sm">
+              <Sparkles size={24} />
+              <span>השאלה שלך:</span>
+            </div>
+            <h3 className="text-2xl md:text-4xl font-black text-gray-900 leading-tight max-w-4xl mx-auto">
+              <LatexRenderer text={result!} inline />
             </h3>
           </div>
 
-          <div className="space-y-8 flex-1 flex flex-col">
+          <div className="space-y-6 flex-1 flex flex-col relative z-10">
             <textarea 
               value={studentAnswer}
               onChange={e => setStudentAnswer(e.target.value)}
-              placeholder="כתוב את תשובתך כאן..."
-              className="w-full flex-1 p-10 bg-gray-50 border-8 border-gray-100 rounded-[3rem] font-bold text-3xl md:text-5xl outline-none focus:border-primary transition-all min-h-[250px]"
+              placeholder="כתוב את תשובתך כאן בצורה מפורטת..."
+              className="w-full flex-1 p-6 bg-gray-50 border-4 border-gray-100 rounded-[2.5rem] font-bold text-lg md:text-2xl outline-none focus:border-primary focus:bg-white transition-all min-h-[200px] shadow-inner"
+              dir="rtl"
             />
             
             {!feedback ? (
               <button 
                 onClick={handleCheckAnswer}
                 disabled={!studentAnswer.trim() || isChecking}
-                className="w-full py-6 bg-primary text-white rounded-3xl font-black text-2xl hover:bg-blue-700 transition-all shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50"
+                className="w-full py-8 bg-primary text-white rounded-[2.5rem] font-black text-3xl hover:bg-blue-700 transition-all shadow-2xl flex items-center justify-center gap-6 disabled:opacity-50 active:scale-95"
               >
-                {isChecking ? <RotateCcw className="animate-spin" size={32} /> : <Sparkles size={32} />}
+                {isChecking ? <Loader2 className="animate-spin" size={40} /> : <CheckCircle2 size={40} />}
                 <span>{isChecking ? 'בודק תשובה...' : 'בדוק את התשובה שלי'}</span>
               </button>
             ) : (
-              <div className="space-y-8 animate-fade-in">
-                <div className={`p-8 rounded-3xl border-4 ${feedback.score >= 80 ? 'bg-green-50 border-green-200' : feedback.score >= 60 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <Trophy className={feedback.score >= 80 ? 'text-green-500' : 'text-amber-500'} size={32} />
-                      <span className="font-black text-gray-900 text-3xl">ציון: {feedback.score}</span>
+              <div className="space-y-10 animate-fade-in">
+                <div className={`p-10 rounded-[3rem] border-4 shadow-xl ${feedback.score >= 80 ? 'bg-green-50 border-green-200' : feedback.score >= 60 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-6">
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${feedback.score >= 80 ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                        <Trophy size={40} />
+                      </div>
+                      <span className="font-black text-gray-900 text-4xl">ציון: {feedback.score}</span>
                     </div>
                   </div>
-                  <p className="text-gray-700 font-bold text-xl leading-relaxed">
+                  <div className="text-gray-700 font-bold text-2xl leading-relaxed bg-white/50 p-6 rounded-2xl">
                     <LatexRenderer text={feedback.feedback} />
-                  </p>
+                  </div>
                 </div>
                 
-                <div className="flex gap-4">
+                <div className="flex gap-6">
                    <button 
                     onClick={() => {
                       setShowQuestion(false);
@@ -959,16 +984,18 @@ const WheelGame: React.FC<{ content: any[]; onFinish: (score: number) => void }>
                       setFeedback(null);
                       setStudentAnswer('');
                     }}
-                    className="flex-1 py-4 bg-gray-900 text-white rounded-xl font-black hover:bg-black transition-all"
+                    className="flex-1 py-6 bg-gray-900 text-white rounded-[2rem] font-black text-2xl hover:bg-black transition-all shadow-xl active:scale-95"
                   >
-                    סובב שוב!
+                    {rounds >= maxRounds ? 'צפה בתוצאות' : 'סובב שוב!'}
                   </button>
-                  <button 
-                    onClick={() => onFinish(feedback.score)}
-                    className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black hover:bg-indigo-700 transition-all"
-                  >
-                    סיים משחק
-                  </button>
+                  {rounds >= maxRounds && (
+                    <button 
+                      onClick={() => onFinish(Math.round(totalScore / maxRounds))}
+                      className="flex-1 py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-2xl hover:bg-indigo-700 transition-all shadow-xl active:scale-95"
+                    >
+                      סיים משחק
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -991,13 +1018,26 @@ const HangmanGame: React.FC<{ content: any[]; onFinish: (score: number) => void 
 
   const alphabet = "אבגדהוזחטיכלמנסעפצקרשת".split("");
 
-  const isWin = word.split("").every(l => guessedLetters.includes(l) || l === " ");
+  const getRegularLetter = (l: string) => {
+    const finalToRegular: Record<string, string> = {
+      'ך': 'כ',
+      'ם': 'מ',
+      'ן': 'נ',
+      'ף': 'פ',
+      'ץ': 'צ'
+    };
+    return finalToRegular[l] || l;
+  };
+
+  const isWin = word.split("").every(l => guessedLetters.includes(getRegularLetter(l)) || l === " ");
   const isLoss = mistakes >= maxMistakes;
 
   const handleGuess = (letter: string) => {
     if (guessedLetters.includes(letter) || isWin || isLoss) return;
     setGuessedLetters([...guessedLetters, letter]);
-    if (!word.includes(letter)) {
+    
+    const wordHasLetter = word.split("").some(l => getRegularLetter(l) === letter);
+    if (!wordHasLetter) {
       setMistakes(m => m + 1);
     }
   };
@@ -1017,37 +1057,46 @@ const HangmanGame: React.FC<{ content: any[]; onFinish: (score: number) => void 
   };
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-2 gap-4 md:gap-8">
+    <div className="w-full flex-1 flex flex-col items-center justify-center p-4 gap-4 md:gap-8">
       <div className="text-center space-y-2">
         <span className="text-sm font-black text-gray-400 uppercase tracking-widest">מילה {currentIdx + 1} מתוך {content.length}</span>
-        <h4 className="text-3xl md:text-6xl font-black text-indigo-600">רמז: {currentItem.hint}</h4>
+        <div className="text-2xl md:text-4xl font-black text-indigo-600 flex items-center justify-center gap-2 flex-wrap">
+          <span>רמז:</span> <LatexRenderer text={currentItem.hint} inline />
+        </div>
       </div>
 
-      <div className="flex flex-col items-center gap-8">
-        <div className="text-6xl md:text-9xl font-black tracking-[0.5em] text-gray-900 flex gap-6">
-          {word.split("").map((l, i) => (
-            <span key={i} className="border-b-8 border-gray-200 min-w-[3rem] text-center">
-              {guessedLetters.includes(l) || l === " " ? l : ""}
-            </span>
-          ))}
+      <div className="flex flex-col items-center gap-6">
+        <div className="text-4xl md:text-7xl font-black tracking-[0.3em] text-gray-900 flex gap-4">
+          {word.split("").map((l, i) => {
+            const regularL = getRegularLetter(l);
+            return (
+              <span key={i} className="border-b-4 border-gray-200 min-w-[2rem] text-center">
+                {guessedLetters.includes(regularL) || l === " " ? l : ""}
+              </span>
+            );
+          })}
         </div>
 
-        <div className="text-red-500 font-black text-3xl">
+        <div className="text-red-500 font-black text-xl">
           טעויות: {mistakes} / {maxMistakes}
         </div>
       </div>
 
-      <div className="grid grid-cols-6 md:grid-cols-11 gap-3 md:gap-4">
-        {alphabet.map(l => (
-          <button
-            key={l}
-            onClick={() => handleGuess(l)}
-            disabled={guessedLetters.includes(l) || isWin || isLoss}
-            className={`w-12 h-12 md:w-20 md:h-20 rounded-2xl font-black text-2xl md:text-4xl transition-all ${guessedLetters.includes(l) ? (word.includes(l) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-400') : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-600 shadow-xl scale-105'}`}
-          >
-            {l}
-          </button>
-        ))}
+      <div className="grid grid-cols-6 md:grid-cols-11 gap-2 md:gap-3">
+        {alphabet.map(l => {
+          const isGuessed = guessedLetters.includes(l);
+          const isCorrect = word.split("").some(wl => getRegularLetter(wl) === l);
+          return (
+            <button
+              key={l}
+              onClick={() => handleGuess(l)}
+              disabled={isGuessed || isWin || isLoss}
+              className={`w-10 h-10 md:w-14 md:h-14 rounded-xl font-black text-lg md:text-2xl transition-all ${isGuessed ? (isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-400') : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-600 shadow-sm hover:shadow-md'}`}
+            >
+              {l}
+            </button>
+          );
+        })}
       </div>
 
       {(isWin || isLoss) && (
@@ -1072,15 +1121,20 @@ const WordSearchGame: React.FC<{ content: string[]; onFinish: (score: number) =>
   const [grid, setGrid] = useState<string[][]>([]);
   const [foundWords, setFoundWords] = useState<string[]>([]);
   const [selection, setSelection] = useState<[number, number][]>([]);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   useEffect(() => {
     const newGrid = Array(gridSize).fill(null).map(() => Array(gridSize).fill(''));
     const alphabet = "אבגדהוזחטיכלמנסעפצקרשת";
     
     // Place words
-    content.forEach(word => {
+    const sortedWords = [...content].sort((a, b) => b.length - a.length);
+    
+    sortedWords.forEach(word => {
       let placed = false;
-      while (!placed) {
+      let attempts = 0;
+      while (!placed && attempts < 100) {
+        attempts++;
         const direction = Math.random() > 0.5 ? 'H' : 'V';
         const row = Math.floor(Math.random() * (gridSize - (direction === 'V' ? word.length : 0)));
         const col = Math.floor(Math.random() * (gridSize - (direction === 'H' ? word.length : 0)));
@@ -1117,51 +1171,80 @@ const WordSearchGame: React.FC<{ content: string[]; onFinish: (score: number) =>
     setGrid(newGrid);
   }, [content]);
 
-  const handleCellClick = (r: number, c: number) => {
-    const newSelection = [...selection, [r, c] as [number, number]];
-    setSelection(newSelection);
+  const handleMouseDown = (r: number, c: number) => {
+    setIsSelecting(true);
+    setSelection([[r, c]]);
+  };
+
+  const handleMouseEnter = (r: number, c: number) => {
+    if (!isSelecting) return;
     
-    const selectedWord = newSelection.map(([row, col]) => grid[row][col]).join('');
-    const reversedWord = [...selectedWord].reverse().join('');
+    const last = selection[selection.length - 1];
+    if (last[0] === r && last[1] === c) return;
     
-    if (content.includes(selectedWord) || content.includes(reversedWord)) {
-      const word = content.includes(selectedWord) ? selectedWord : reversedWord;
-      if (!foundWords.includes(word)) {
-        const newFound = [...foundWords, word];
-        setFoundWords(newFound);
-        setSelection([]);
-        if (newFound.length === content.length) {
-          setTimeout(() => onFinish(100), 1000);
-        }
-      }
-    } else if (newSelection.length > 8) {
-      setSelection([]);
+    // Only allow adjacent selection
+    const rowDiff = Math.abs(last[0] - r);
+    const colDiff = Math.abs(last[1] - c);
+    
+    if (rowDiff <= 1 && colDiff <= 1 && !selection.some(([sr, sc]) => sr === r && sc === c)) {
+      setSelection([...selection, [r, c]]);
     }
   };
 
+  const handleMouseUp = () => {
+    setIsSelecting(false);
+    checkSelection();
+  };
+
+  const checkSelection = () => {
+    const selectedWord = selection.map(([row, col]) => grid[row][col]).join('');
+    const reversedWord = [...selectedWord].reverse().join('');
+    
+    const word = content.find(w => w === selectedWord || w === reversedWord);
+    
+    if (word && !foundWords.includes(word)) {
+      const newFound = [...foundWords, word];
+      setFoundWords(newFound);
+      if (newFound.length === content.length) {
+        setTimeout(() => onFinish(100), 1000);
+      }
+    }
+    setSelection([]);
+  };
+
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-4 items-center justify-center p-2">
-      <div className="grid grid-cols-10 gap-1 bg-gray-100 p-2 rounded-2xl border-4 border-gray-200 shadow-xl flex-1 max-w-[90vmin]">
-        {grid.map((row, r) => row.map((char, c) => (
-          <button 
-            key={`${r}-${c}`}
-            onClick={() => handleCellClick(r, c)}
-            className={`aspect-square rounded-lg font-black text-lg md:text-3xl flex items-center justify-center transition-all ${selection.some(([row, col]) => row === r && col === c) ? 'bg-primary text-white scale-110 shadow-lg' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
-          >
-            {char}
-          </button>
-        )))}
+    <div className="w-full h-full flex flex-col md:flex-row gap-8 items-center justify-center p-4 select-none" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+      <div className="grid grid-cols-10 gap-1 bg-white p-4 rounded-[2.5rem] border-8 border-gray-100 shadow-2xl flex-1 max-w-[85vmin]">
+        {grid.map((row, r) => row.map((char, c) => {
+          const isSelected = selection.some(([sr, sc]) => sr === r && sc === c);
+          return (
+            <div 
+              key={`${r}-${c}`}
+              onMouseDown={() => handleMouseDown(r, c)}
+              onMouseEnter={() => handleMouseEnter(r, c)}
+              className={`aspect-square rounded-xl font-black text-xl md:text-4xl flex items-center justify-center transition-all cursor-pointer ${isSelected ? 'bg-primary text-white scale-110 shadow-lg' : 'bg-gray-50 text-gray-700 hover:bg-blue-50'}`}
+            >
+              {char}
+            </div>
+          );
+        }))}
       </div>
-      <div className="flex-1 space-y-6 w-full max-w-md">
-        <h4 className="font-black text-gray-900 text-2xl">מילים למציאה:</h4>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex-1 space-y-8 w-full max-w-md bg-white p-10 rounded-[3rem] border border-gray-100 shadow-xl">
+        <div className="flex items-center gap-4 mb-4">
+          <Search className="text-primary" size={32} />
+          <h4 className="font-black text-gray-900 text-3xl">מילים למציאה</h4>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
           {content.map(word => (
-            <span key={word} className={`px-4 py-2 rounded-xl font-black text-sm md:text-lg transition-all ${foundWords.includes(word) ? 'bg-green-100 text-green-600 line-through opacity-50' : 'bg-white border-2 border-gray-100 text-gray-600 shadow-sm'}`}>
-              {word}
-            </span>
+            <div key={word} className={`px-6 py-4 rounded-2xl font-black text-lg transition-all flex items-center justify-between ${foundWords.includes(word) ? 'bg-green-50 text-green-600 border-2 border-green-200' : 'bg-gray-50 border-2 border-gray-100 text-gray-600'}`}>
+              <span>{word}</span>
+              {foundWords.includes(word) && <CheckCircle2 size={20} />}
+            </div>
           ))}
         </div>
-        <button onClick={() => setSelection([])} className="text-sm font-black text-primary hover:underline bg-blue-50 px-4 py-2 rounded-full">נקה בחירה</button>
+        <div className="pt-6 border-t border-gray-100">
+          <p className="text-gray-400 font-bold text-sm">גרור את העכבר על האותיות כדי לסמן מילה</p>
+        </div>
       </div>
     </div>
   );
@@ -1169,33 +1252,42 @@ const WordSearchGame: React.FC<{ content: string[]; onFinish: (score: number) =>
 
 const CrosswordGame: React.FC<{ content: any[]; onFinish: (score: number) => void }> = ({ content, onFinish }) => {
   const [answers, setAnswers] = useState<string[]>(Array(content.length).fill(''));
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [checked, setChecked] = useState<boolean[]>(Array(content.length).fill(false));
+  const [results, setResults] = useState<boolean[]>(Array(content.length).fill(false));
 
   const handleCheckAnswer = () => {
-    const correctCount = answers.filter((ans, idx) => ans.trim().toLowerCase() === content[idx].answer.toLowerCase()).length;
+    const newResults = answers.map((ans, idx) => ans.trim().toLowerCase() === content[idx].answer.toLowerCase());
+    setResults(newResults);
+    setChecked(Array(content.length).fill(true));
+    
+    const correctCount = newResults.filter(r => r).length;
     if (correctCount === content.length) {
-      onFinish(100);
-    } else {
-      setShowFeedback(true);
-      setTimeout(() => setShowFeedback(false), 3000);
+      setTimeout(() => onFinish(100), 1500);
     }
   };
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-8 items-start p-4">
+    <div className="w-full h-full flex flex-col lg:flex-row gap-8 items-start p-4 max-w-7xl mx-auto">
       {/* Clues Section */}
-      <div className="w-full md:w-1/4 space-y-4">
-        <div className="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-2xl">
-          <h4 className="text-2xl font-black mb-4 flex items-center gap-3">
-            <HelpCircle size={28} />
-            <span>הגדרות</span>
-          </h4>
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-3 custom-scrollbar">
+      <div className="w-full lg:w-1/3 space-y-6">
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-100">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+              <HelpCircle size={28} />
+            </div>
+            <h4 className="text-3xl font-black text-gray-900">הגדרות</h4>
+          </div>
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
             {content.map((item, idx) => (
-              <div key={idx} className="bg-white/10 p-3 rounded-xl border border-white/20">
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="w-6 h-6 bg-white text-indigo-600 rounded-full flex items-center justify-center text-xs font-black">{idx + 1}</span>
-                  <span className="font-bold text-sm">{item.clue}</span>
+              <div 
+                key={idx} 
+                className={`p-5 rounded-2xl border-2 transition-all ${checked[idx] ? (results[idx] ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') : 'bg-gray-50 border-gray-100 hover:border-indigo-200'}`}
+              >
+                <div className="flex items-start gap-4">
+                  <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${checked[idx] ? (results[idx] ? 'bg-green-500 text-white' : 'bg-red-500 text-white') : 'bg-indigo-600 text-white'}`}>
+                    {idx + 1}
+                  </span>
+                  <p className="font-bold text-gray-700 leading-tight pt-1">{item.clue}</p>
                 </div>
               </div>
             ))}
@@ -1204,78 +1296,175 @@ const CrosswordGame: React.FC<{ content: any[]; onFinish: (score: number) => voi
       </div>
 
       {/* Grid Section */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center gap-8">
-        <div className="bg-white p-4 md:p-12 rounded-[3rem] shadow-2xl border-8 border-gray-50 w-full">
-          <div className="grid gap-6 md:gap-10">
+      <div className="flex-1 w-full flex flex-col items-center gap-10">
+        <div className="bg-white p-8 md:p-12 rounded-[3.5rem] shadow-2xl border-8 border-gray-50 w-full">
+          <div className="space-y-10">
             {content.map((item, idx) => (
-              <div key={idx} className="flex flex-col gap-4">
+              <div key={idx} className="flex flex-col gap-4 animate-fade-in" style={{ animationDelay: `${idx * 0.1}s` }}>
                 <div className="flex items-center gap-6">
-                  <span className="text-indigo-600 font-black text-4xl w-12">{idx + 1}.</span>
-                  <div className="flex gap-3 flex-wrap">
+                  <span className={`text-3xl font-black w-10 ${checked[idx] ? (results[idx] ? 'text-green-500' : 'text-red-500') : 'text-indigo-600'}`}>
+                    {idx + 1}.
+                  </span>
+                  <div className="flex gap-2 flex-wrap">
                     {item.answer.split('').map((_: string, charIdx: number) => (
-                      <div key={charIdx} className="relative group">
-                        <input 
-                          maxLength={1}
-                          value={answers[idx][charIdx] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const newAns = [...answers];
-                            const current = newAns[idx].split('');
-                            current[charIdx] = val;
-                            newAns[idx] = current.join('');
-                            setAnswers(newAns);
-                            
-                            // Auto-focus next input
-                            if (val && e.target.nextSibling) {
-                              (e.target.nextSibling as HTMLInputElement).focus();
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Backspace' && !answers[idx][charIdx] && (e.target as HTMLInputElement).previousSibling) {
-                              ((e.target as HTMLInputElement).previousSibling as HTMLInputElement).focus();
-                            }
-                          }}
-                          className={`w-12 h-12 md:w-20 md:h-20 border-4 md:border-8 rounded-2xl text-center font-black text-2xl md:text-5xl outline-none transition-all
-                            ${answers[idx][charIdx] ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-gray-50 hover:border-indigo-300'}`}
-                        />
-                      </div>
+                      <input 
+                        key={charIdx}
+                        maxLength={1}
+                        value={answers[idx][charIdx] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const newAns = [...answers];
+                          const current = newAns[idx].split('');
+                          while(current.length < item.answer.length) current.push('');
+                          current[charIdx] = val;
+                          newAns[idx] = current.join('');
+                          setAnswers(newAns);
+                          setChecked(prev => {
+                            const n = [...prev];
+                            n[idx] = false;
+                            return n;
+                          });
+                          
+                          if (val && e.target.nextSibling) {
+                            (e.target.nextSibling as HTMLInputElement).focus();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Backspace' && !answers[idx][charIdx] && (e.target as HTMLInputElement).previousSibling) {
+                            ((e.target as HTMLInputElement).previousSibling as HTMLInputElement).focus();
+                          }
+                        }}
+                        className={`w-10 h-10 md:w-16 md:h-16 border-4 rounded-xl text-center font-black text-xl md:text-3xl outline-none transition-all
+                          ${checked[idx] 
+                            ? (results[idx] ? 'border-green-500 bg-green-50 text-green-700' : 'border-red-500 bg-red-50 text-red-700') 
+                            : (answers[idx][charIdx] ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-gray-50 hover:border-indigo-300')}`}
+                      />
                     ))}
                   </div>
+                  {checked[idx] && (
+                    <div className={results[idx] ? 'text-green-500' : 'text-red-500'}>
+                      {results[idx] ? <CheckCircle2 size={32} /> : <XCircle size={32} />}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-6 w-full">
           <button 
             onClick={handleCheckAnswer}
-            className="px-16 py-5 bg-primary text-white rounded-[2rem] font-black text-3xl shadow-2xl hover:bg-blue-700 transition-all transform hover:-translate-y-1"
+            className="w-full max-w-md py-6 bg-primary text-white rounded-[2rem] font-black text-3xl shadow-2xl hover:bg-blue-700 transition-all transform hover:-translate-y-1 active:scale-95"
           >
             בדוק את התשובות שלי
           </button>
-          {showFeedback && (
-            <div className="flex items-center gap-3 text-red-500 font-black animate-shake bg-red-50 px-8 py-4 rounded-full border-2 border-red-100 text-lg">
-              <XCircle size={24} />
-              <span>חלק מהתשובות אינן נכונות, נסה שוב!</span>
-            </div>
-          )}
+          <p className="text-gray-400 font-bold text-sm">השלם את כל המילים כדי לסיים את המשחק</p>
         </div>
       </div>
-      
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
-        }
-        .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
-      `}</style>
+    </div>
+  );
+};
+
+const MatchingGame: React.FC<{ content: any[]; onFinish: (score: number) => void }> = ({ content, onFinish }) => {
+  const [leftItems, setLeftItems] = useState<any[]>([]);
+  const [rightItems, setRightItems] = useState<any[]>([]);
+  const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
+  const [selectedRight, setSelectedRight] = useState<number | null>(null);
+  const [matches, setMatches] = useState<[number, number][]>([]);
+  const [wrongMatch, setWrongMatch] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    const left = content.map((item, idx) => ({ ...item, id: idx })).sort(() => Math.random() - 0.5);
+    const right = content.map((item, idx) => ({ ...item, id: idx })).sort(() => Math.random() - 0.5);
+    setLeftItems(left);
+    setRightItems(right);
+  }, [content]);
+
+  const handleMatch = (leftIdx: number, rightIdx: number) => {
+    const leftItem = leftItems[leftIdx];
+    const rightItem = rightItems[rightIdx];
+
+    if (leftItem.id === rightItem.id) {
+      const newMatches: [number, number][] = [...matches, [leftIdx, rightIdx]];
+      setMatches(newMatches);
+      setSelectedLeft(null);
+      setSelectedRight(null);
+      if (newMatches.length === content.length) {
+        setTimeout(() => onFinish(100), 1000);
+      }
+    } else {
+      setWrongMatch([leftIdx, rightIdx]);
+      setTimeout(() => {
+        setWrongMatch(null);
+        setSelectedLeft(null);
+        setSelectedRight(null);
+      }, 1000);
+    }
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center p-4 gap-12 max-w-6xl mx-auto">
+      <div className="text-center space-y-4">
+        <h3 className="text-4xl md:text-6xl font-black text-gray-900">משחק התאמה</h3>
+        <p className="text-gray-500 font-bold text-xl">התאם בין המושגים להגדרות שלהם</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 w-full">
+        <div className="space-y-4">
+          {leftItems.map((item, idx) => {
+            const isMatched = matches.some(m => m[0] === idx);
+            const isSelected = selectedLeft === idx;
+            const isWrong = wrongMatch?.[0] === idx;
+            
+            return (
+              <button
+                key={idx}
+                disabled={isMatched}
+                onClick={() => {
+                  if (selectedRight !== null) handleMatch(idx, selectedRight);
+                  else setSelectedLeft(idx);
+                }}
+                className={`w-full p-6 rounded-2xl font-bold text-xl md:text-2xl transition-all border-4 text-right flex items-center justify-between
+                  ${isMatched ? 'bg-green-50 border-green-200 text-green-700 opacity-50' : 
+                    isWrong ? 'bg-red-50 border-red-400 text-red-700 animate-shake' :
+                    isSelected ? 'bg-indigo-600 border-indigo-700 text-white scale-105 shadow-xl' : 
+                    'bg-white border-gray-100 text-gray-700 hover:border-indigo-300 hover:bg-indigo-50'}`}
+              >
+                <LatexRenderer text={item.term || item.concept} inline />
+                {isMatched && <CheckCircle2 size={24} />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="space-y-4">
+          {rightItems.map((item, idx) => {
+            const isMatched = matches.some(m => m[1] === idx);
+            const isSelected = selectedRight === idx;
+            const isWrong = wrongMatch?.[1] === idx;
+
+            return (
+              <button
+                key={idx}
+                disabled={isMatched}
+                onClick={() => {
+                  if (selectedLeft !== null) handleMatch(selectedLeft, idx);
+                  else setSelectedRight(idx);
+                }}
+                className={`w-full p-6 rounded-2xl font-bold text-xl md:text-2xl transition-all border-4 text-right flex items-center justify-between
+                  ${isMatched ? 'bg-green-50 border-green-200 text-green-700 opacity-50' : 
+                    isWrong ? 'bg-red-50 border-red-400 text-red-700 animate-shake' :
+                    isSelected ? 'bg-indigo-600 border-indigo-700 text-white scale-105 shadow-xl' : 
+                    'bg-white border-gray-100 text-gray-700 hover:border-indigo-300 hover:bg-indigo-50'}`}
+              >
+                <LatexRenderer text={item.definition || item.description} inline />
+                {isMatched && <CheckCircle2 size={24} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

@@ -303,15 +303,15 @@ const LibraryView: React.FC<LibraryViewProps> = ({ user, onBack, onAddHistoryIte
                       <div className="space-y-6">
                          {activeItem.questions.map((q, i) => (
                             <div key={q.id} className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                               <h4 className="font-bold text-lg mb-4">{i+1}. <LatexRenderer text={q.text} /></h4>
+                               <h4 className="font-bold text-lg mb-4">{i+1}. <LatexRenderer text={q.text} inline /></h4>
                                {q.type === 'MCQ' ? (
                                   <div className="grid gap-2">
                                      {q.options.map((opt, oi) => (
-                                        <div key={oi} className={`p-3 rounded-xl border-2 bg-white ${oi === q.correctIndex ? 'border-green-500' : 'border-transparent opacity-60'}`}><LatexRenderer text={opt} /></div>
+                                        <div key={oi} className={`p-3 rounded-xl border-2 bg-white ${oi === q.correctIndex ? 'border-green-500' : 'border-transparent opacity-60'}`}><LatexRenderer text={opt} inline /></div>
                                      ))}
                                   </div>
                                ) : (
-                                  <div className="p-4 bg-white rounded-xl border-2 border-indigo-100 text-indigo-700 italic">תשובת מודל: <LatexRenderer text={q.modelAnswer || ''} /></div>
+                                  <div className="p-4 bg-white rounded-xl border-2 border-indigo-100 text-indigo-700 italic">תשובת מודל: <LatexRenderer text={q.modelAnswer || ''} inline /></div>
                                )}
                             </div>
                          ))}

@@ -40,6 +40,29 @@ import { analyzeAndRefreshLearningProfile, generateTestPrepPlan } from './servic
 import LearningGamesView from './components/LearningGamesView.tsx';
 import { PenTool, MessageCircle, BookOpen, GraduationCap, Calendar, Zap, Bot, ChevronLeft, ArrowRight, Bell, Sparkles, Clock, Trash2, Trophy, Presentation, Gamepad2 } from 'lucide-react';
 
+const SUBJECT_SLUGS: Record<string, string> = {
+  'מתמטיקה': 'math',
+  'אנגלית': 'english',
+  'מדעים': 'science',
+  'היסטוריה': 'history',
+  'גיאוגרפיה': 'geography',
+  'תנ״ך': 'bible',
+  'אזרחות': 'civics',
+  'עברית (לשון)': 'language',
+  'אחר': 'other'
+};
+
+const TAB_SLUGS: Record<string, string> = {
+  'practice': 'practice',
+  'test-prep': 'testprep',
+  'resources': 'resources',
+  'chat': 'chat',
+  'games': 'games'
+};
+
+const REVERSE_SUBJECT_SLUGS = Object.fromEntries(Object.entries(SUBJECT_SLUGS).map(([k, v]) => [v, k]));
+const REVERSE_TAB_SLUGS = Object.fromEntries(Object.entries(TAB_SLUGS).map(([k, v]) => [v, k]));
+
 const RoleSelectionView: React.FC<{ onSelect: (role: UserRole) => void }> = ({ onSelect }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6" dir="rtl">
@@ -348,6 +371,7 @@ const MainContent: React.FC = () => {
   const [initialClassroomCreateMode, setInitialClassroomCreateMode] = useState(false);
   const [initialTeacherTab, setInitialTeacherTab] = useState<'OVERVIEW' | 'PLANNER' | 'CHAT' | 'EXAM_CHECKER' | undefined>(undefined);
   const [initialLessonPlan, setInitialLessonPlan] = useState<LessonPlan | null>(null);
+  const [initialHistoryId, setInitialHistoryId] = useState<string | null>(null);
   const [initialExamResult, setInitialExamResult] = useState<ExamCheckResult | null>(null);
   const [initialGrade, setInitialGrade] = useState<Grade | null>(null);
   const [initialTopic, setInitialTopic] = useState<string | null>(null);
@@ -702,7 +726,7 @@ const MainContent: React.FC = () => {
       } else {
         title = 'כיתות | Lumdim';
       }
-    } else if (path === '/practice') {
+    } else if (path.startsWith('/practice')) {
       title = 'תרגול | Lumdim';
     } else if (path === '/chat') {
       title = "צ'אט | Lumdim";
@@ -732,9 +756,27 @@ const MainContent: React.FC = () => {
         if (classroom) setActiveClassId(classroom.id);
       }
     }
-    else if (path === '/practice') {
+    else if (path.startsWith('/practice') || Object.values(SUBJECT_SLUGS).some(s => path.startsWith(`/${s}/`))) {
       setViewMode('PRACTICE');
-      setActiveTab('practice');
+      
+      // Extract subject and column from URL if present
+      const parts = path.split('/');
+      const urlSubjectSlug = parts[1] === 'practice' ? parts[2] : parts[1];
+      const urlColumnSlug = parts[1] === 'practice' ? parts[3] : parts[2];
+
+      const realSubject = REVERSE_SUBJECT_SLUGS[urlSubjectSlug] || decodeURIComponent(urlSubjectSlug);
+      const realTab = REVERSE_TAB_SLUGS[urlColumnSlug] || urlColumnSlug;
+      
+      if (realSubject) setSelectedSubject(realSubject);
+      if (realTab) {
+        if (realTab === 'practice') setActiveTab('practice');
+        else if (realTab === 'test-prep') setActiveTab('test-prep');
+        else if (realTab === 'resources') setActiveTab('resources');
+        else if (realTab === 'chat') setActiveTab('chat');
+        else if (realTab === 'games') setActiveTab('games');
+      } else {
+        setActiveTab('practice');
+      }
     }
     else if (path === '/chat') {
       setViewMode('CHAT');
@@ -765,10 +807,16 @@ const MainContent: React.FC = () => {
     navigate('/');
     updateUserData({ grade: undefined });
   };
-  const handleSubjectSelect = (subject: Subject | string) => { setSelectedSubject(subject); navigate('/practice'); setActiveTab('practice'); setPracticeConfig(null); };
+  const handleSubjectSelect = (subject: Subject | string) => { 
+    setSelectedSubject(subject); 
+    const subjectSlug = SUBJECT_SLUGS[subject] || encodeURIComponent(subject);
+    navigate(`/${subjectSlug}/practice`); 
+    setActiveTab('practice'); 
+    setPracticeConfig(null); 
+  };
   const handleAddSubject = (subjectName: string) => { if (!subjectName.trim() || userSubjects.includes(subjectName)) return; setUserSubjects([...userSubjects, subjectName]); };
 
-  const handleHomeClick = () => { navigate('/'); setActiveTab('practice'); setSelectedSubject(null); setPracticeConfig(null); setSummaryToOpen(null); setActiveClassId(null); setInitialMaterialId(null); setInitialStudentId(null); setInitialTeacherTab(undefined); setInitialLessonPlan(null); setInitialGlobalEditorData(null); setInitialClassroomCreateMode(false); };
+  const handleHomeClick = () => { navigate('/'); setActiveTab('practice'); setSelectedSubject(null); setPracticeConfig(null); setSummaryToOpen(null); setActiveClassId(null); setInitialMaterialId(null); setInitialStudentId(null); setInitialTeacherTab(undefined); setInitialLessonPlan(null); setInitialHistoryId(null); setInitialGlobalEditorData(null); setInitialClassroomCreateMode(false); };
   const handleHistoryClick = () => { navigate('/history'); };
   const handleClassroomClick = () => { navigate('/class'); setInitialClassroomCreateMode(false); };
   const handleLibraryClick = () => { if (isTeacher) navigate('/library'); };
@@ -968,6 +1016,8 @@ const MainContent: React.FC = () => {
             setInitialTeacherTab={setInitialTeacherTab}
             initialLessonPlan={initialLessonPlan}
             setInitialLessonPlan={setInitialLessonPlan}
+            initialHistoryId={initialHistoryId}
+            setInitialHistoryId={setInitialHistoryId}
             initialExamResult={initialExamResult}
             setInitialExamResult={setInitialExamResult}
             initialGrade={initialGrade}
@@ -1066,6 +1116,8 @@ interface AppContentProps {
   setInitialTeacherTab: (t: 'OVERVIEW' | 'PLANNER' | 'CHAT' | 'EXAM_CHECKER' | undefined) => void;
   initialLessonPlan: LessonPlan | null;
   setInitialLessonPlan: (p: LessonPlan | null) => void;
+  initialHistoryId: string | null;
+  setInitialHistoryId: (i: string | null) => void;
   initialExamResult: ExamCheckResult | null;
   setInitialExamResult: (r: ExamCheckResult | null) => void;
   initialGrade: Grade | null;
@@ -1093,6 +1145,7 @@ const AppContent: React.FC<AppContentProps> = ({
   handleSaveChatSession, handleDeleteChatSession,
   initialTeacherTab, setInitialTeacherTab,
   initialLessonPlan, setInitialLessonPlan,
+  initialHistoryId, setInitialHistoryId,
   initialExamResult, setInitialExamResult,
   initialGrade, setInitialGrade,
   initialTopic, setInitialTopic
@@ -1200,7 +1253,7 @@ const AppContent: React.FC<AppContentProps> = ({
         />
       )}
 
-      <main className={`flex-1 w-full ${isHeaderHidden ? 'max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'} ${viewMode === 'GAMES' ? 'p-0 overflow-hidden' : 'py-6 pb-24 md:pb-8'}`}>
+      <main className={`flex-1 flex flex-col w-full ${isHeaderHidden ? 'max-w-none' : 'max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10'} ${viewMode === 'GAMES' ? 'p-0 overflow-hidden' : 'py-8 pb-24 md:pb-12'}`}>
         {viewMode === 'DASHBOARD' && (
           <div className="flex flex-col gap-8 animate-fade-in">
             {isTeacher ? (
@@ -1232,6 +1285,7 @@ const AppContent: React.FC<AppContentProps> = ({
                 onUpgrade={handleUpgradeClick}
                 initialTeacherTab={initialTeacherTab}
                 initialLessonPlan={initialLessonPlan}
+                initialHistoryId={initialHistoryId}
                 initialExamResult={initialExamResult}
                 initialGrade={initialGrade}
                 initialTopic={initialTopic}
@@ -1262,12 +1316,49 @@ const AppContent: React.FC<AppContentProps> = ({
             setInitialTopic(item.subject);
             setInitialTeacherTab('EXAM_CHECKER');
             setViewMode('DASHBOARD');
-          } else if (item.type === 'LESSON_PLAN') {
+            navigate('/');
+          } else if (item.type === 'LESSON_PLAN' && item.id.startsWith('plan-')) {
             setInitialLessonPlan(item.details);
+            setInitialHistoryId(item.id);
             setInitialGrade(item.grade);
             setInitialTopic(item.subject);
             setInitialTeacherTab('PLANNER');
             setViewMode('DASHBOARD');
+            navigate('/');
+          } else if (item.type === 'PRESENTATION') {
+            setInitialLessonPlan({
+              title: item.title,
+              subject: item.subject as Subject,
+              objectives: [],
+              introduction: '',
+              mainContent: '',
+              summary: '',
+              resourcesNeeded: [],
+              presentation: item.details
+            });
+            setInitialHistoryId(item.id);
+            setInitialGrade(item.grade);
+            setInitialTopic(item.subject);
+            setInitialTeacherTab('PLANNER');
+            setViewMode('DASHBOARD');
+            navigate('/');
+          } else if (item.type === 'INFOGRAPHIC') {
+            setInitialLessonPlan({
+              title: item.title,
+              subject: item.subject as Subject,
+              objectives: [],
+              introduction: '',
+              mainContent: '',
+              summary: '',
+              resourcesNeeded: [],
+              infographic: item.details
+            });
+            setInitialHistoryId(item.id);
+            setInitialGrade(item.grade);
+            setInitialTopic(item.subject);
+            setInitialTeacherTab('PLANNER');
+            setViewMode('DASHBOARD');
+            navigate('/');
           } else {
             setInitialGlobalEditorData(item.details || item); 
             setIsGlobalEditorOpen(true); 
@@ -1330,7 +1421,7 @@ const AppContent: React.FC<AppContentProps> = ({
         )}
 
         {isMainToolVisible && (
-          <div className={`flex flex-col lg:flex-row gap-8 ${viewMode === 'GAMES' ? '' : 'animate-fade-in'}`}>
+          <div className={`flex flex-col lg:flex-row gap-8 flex-1 ${viewMode === 'GAMES' ? '' : 'animate-fade-in'}`}>
             {isTeacher && viewMode !== 'GAMES' && (
               <div className="hidden lg:flex lg:w-1/4 flex-col gap-6 no-print p-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border-l border-gray-100 sticky top-6">
@@ -1341,25 +1432,65 @@ const AppContent: React.FC<AppContentProps> = ({
                     </button>
                   </div>
                   <nav className="flex flex-col gap-3">
-                      <button onClick={() => setActiveTab('practice')} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'practice' ? 'bg-blue-50 text-primary' : 'text-gray-600'}`}><PenTool size={22} /><span>תרגול שאלות</span></button>
-                      <button onClick={() => setActiveTab('resources')} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'resources' ? 'bg-green-50 text-green-600' : 'text-gray-600'}`}><BookOpen size={22} /><span>חומרי לימוד</span></button>
-                      <button onClick={() => setActiveTab('test-prep')} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'test-prep' ? 'bg-amber-50 text-amber-700' : 'text-gray-600'}`}><Calendar size={22} /><span>הכנה למבחן</span></button>
-                      <button onClick={() => setActiveTab('games')} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'games' ? 'bg-red-50 text-red-600' : 'text-gray-600'}`}><Gamepad2 size={22} /><span>משחקי למידה</span></button>
-                      <button onClick={() => setActiveTab('chat')} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'chat' ? 'bg-indigo-50 text-accent' : 'text-gray-600'}`}><MessageCircle size={22} /><span>צ'אט עם מורה</span></button>
+                      <button onClick={() => {
+                        const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                        navigate(`/${subjectSlug}/practice`);
+                        setActiveTab('practice');
+                      }} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'practice' ? 'bg-blue-50 text-primary' : 'text-gray-600'}`}><PenTool size={22} /><span>תרגול שאלות</span></button>
+                      <button onClick={() => {
+                        const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                        navigate(`/${subjectSlug}/resources`);
+                        setActiveTab('resources');
+                      }} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'resources' ? 'bg-green-50 text-green-600' : 'text-gray-600'}`}><BookOpen size={22} /><span>חומרי לימוד</span></button>
+                      <button onClick={() => {
+                        const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                        navigate(`/${subjectSlug}/testprep`);
+                        setActiveTab('test-prep');
+                      }} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'test-prep' ? 'bg-amber-50 text-amber-700' : 'text-gray-600'}`}><Calendar size={22} /><span>הכנה למבחן</span></button>
+                      <button onClick={() => {
+                        const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                        navigate(`/${subjectSlug}/games`);
+                        setActiveTab('games');
+                      }} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'games' ? 'bg-red-50 text-red-600' : 'text-gray-600'}`}><Gamepad2 size={22} /><span>משחקי למידה</span></button>
+                      <button onClick={() => {
+                        const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                        navigate(`/${subjectSlug}/chat`);
+                        setActiveTab('chat');
+                      }} className={`p-4 rounded-xl flex items-center gap-3 transition-all text-right font-medium ${activeTab === 'chat' ? 'bg-indigo-50 text-accent' : 'text-gray-600'}`}><MessageCircle size={22} /><span>צ'אט עם מורה</span></button>
                   </nav>
                 </div>
               </div>
             )}
-            <div className={`${isTeacher ? (viewMode === 'GAMES' ? 'w-full' : 'lg:w-3/4 p-6') : (viewMode === 'GAMES' ? 'w-full' : 'w-full p-6 md:p-10')}`}>
+            <div className={`flex flex-col flex-1 ${isTeacher ? (viewMode === 'GAMES' ? 'w-full' : 'lg:w-3/4 p-6') : (viewMode === 'GAMES' ? 'w-full' : 'w-full p-6 md:p-10')}`}>
                 {!isTeacher && (
-                  <div className="flex flex-wrap gap-4 mb-8 no-print">
+                  <div className="flex flex-wrap gap-4 mb-8 no-print shrink-0">
                     <button onClick={handleHomeClick} className="px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm bg-white text-gray-600 hover:bg-gray-50 border border-gray-100"><ArrowRight size={18} /><span>חזרה</span></button>
                     <div className="w-px h-10 bg-gray-200 mx-2 hidden sm:block" />
-                    <button onClick={() => setActiveTab('practice')} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'practice' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><PenTool size={18} /><span>תרגול</span></button>
-                    <button onClick={() => setActiveTab('resources')} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'resources' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><BookOpen size={18} /><span>חומרים</span></button>
-                    <button onClick={() => setActiveTab('test-prep')} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'test-prep' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><Calendar size={18} /><span>הכנה למבחן</span></button>
-                    <button onClick={() => setActiveTab('games')} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'games' ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><Gamepad2 size={18} /><span>משחקים</span></button>
-                    <button onClick={() => setActiveTab('chat')} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'chat' ? 'bg-accent text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><MessageCircle size={18} /><span>צ'אט</span></button>
+                    <button onClick={() => {
+                      const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                      navigate(`/${subjectSlug}/practice`);
+                      setActiveTab('practice');
+                    }} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'practice' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><PenTool size={18} /><span>תרגול</span></button>
+                    <button onClick={() => {
+                      const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                      navigate(`/${subjectSlug}/resources`);
+                      setActiveTab('resources');
+                    }} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'resources' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><BookOpen size={18} /><span>חומרים</span></button>
+                    <button onClick={() => {
+                      const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                      navigate(`/${subjectSlug}/testprep`);
+                      setActiveTab('test-prep');
+                    }} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'test-prep' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><Calendar size={18} /><span>הכנה למבחן</span></button>
+                    <button onClick={() => {
+                      const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                      navigate(`/${subjectSlug}/games`);
+                      setActiveTab('games');
+                    }} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'games' ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><Gamepad2 size={18} /><span>משחקים</span></button>
+                    <button onClick={() => {
+                      const subjectSlug = selectedSubject ? (SUBJECT_SLUGS[selectedSubject] || encodeURIComponent(selectedSubject)) : 'practice';
+                      navigate(`/${subjectSlug}/chat`);
+                      setActiveTab('chat');
+                    }} className={`px-6 py-3 rounded-2xl flex items-center gap-2 transition-all font-bold shadow-sm ${activeTab === 'chat' ? 'bg-accent text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><MessageCircle size={18} /><span>צ'אט</span></button>
                   </div>
                 )}
                 {activeTab === 'practice' && <PracticeArea subject={selectedSubject as Subject} grade={selectedGrade!} onQuestionAnswered={handleQuestionAnswered} recentMistakes={recentMistakes} isTeacher={isTeacher} user={user} isPro={isPro} checkAndIncrementAiLimit={checkAndIncrementAiLimit} onBack={handleBackFromGenericView} />}
@@ -1378,13 +1509,15 @@ const AppContent: React.FC<AppContentProps> = ({
                   />
                 )}
                 {activeTab === 'games' && (
-                  <LearningGamesView 
-                    user={user!} 
-                    subject={selectedSubject as Subject}
-                    grade={selectedGrade!}
-                    onBack={handleHomeClick} 
-                    onAddHistoryItem={handleAddHistoryItem} 
-                  />
+                  <div className="flex-1 flex flex-col">
+                    <LearningGamesView 
+                      user={user!} 
+                      subject={selectedSubject as Subject}
+                      grade={selectedGrade!}
+                      onBack={handleHomeClick} 
+                      onAddHistoryItem={handleAddHistoryItem} 
+                    />
+                  </div>
                 )}
                 {activeTab === 'chat' && (
                   <ChatBot 
@@ -1435,7 +1568,11 @@ const AppContent: React.FC<AppContentProps> = ({
               timestamp: mat.timestamp,
               subject: mat.subject as Subject,
               grade: mat.grade as Grade,
-              type: mat.type === 'SUMMARY' ? 'SUMMARY' : (mat.type === 'TEST' ? 'PRACTICE' : 'LESSON_PLAN'),
+              type: mat.type === 'SUMMARY' ? 'SUMMARY' : 
+                    (mat.type === 'TEST' ? 'TEST' : 
+                    (mat.type === 'ASSIGNMENT' ? 'ASSIGNMENT' : 
+                    (mat.type === 'GAME' ? 'GAME' : 
+                    (mat.type === 'UPCOMING_TEST' ? 'UPCOMING_TEST' : 'LESSON_PLAN')))),
               title: mat.title,
               content: mat.content,
               details: mat
@@ -1501,6 +1638,8 @@ const App: React.FC = () => {
         <Route path="/calendar" element={<MainContent />} />
         <Route path="/notifications" element={<MainContent />} />
         <Route path="/practice" element={<MainContent />} />
+        <Route path="/practice/:subject/:column" element={<MainContent />} />
+        <Route path="/:subject/:column" element={<MainContent />} />
         <Route path="/chat" element={<MainContent />} />
         <Route path="/games" element={<MainContent />} />
         <Route path="/courses" element={<MainContent />} />

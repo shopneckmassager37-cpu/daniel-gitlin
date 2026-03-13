@@ -1118,9 +1118,10 @@ interface RichEditorProps {
   subject?: string;
   hideInteractive?: boolean;
   stickyOffset?: string;
+  disableStickyToolbar?: boolean;
 }
 
-const RichEditor: React.FC<RichEditorProps> = ({ value, onChange, placeholder, showGuide = true, minHeight = "450px", minimalMode = false, subject, hideInteractive = false, stickyOffset = "top-0" }) => {
+const RichEditor: React.FC<RichEditorProps> = ({ value, onChange, placeholder, showGuide = true, minHeight = "450px", minimalMode = false, subject, hideInteractive = false, stickyOffset = "top-0", disableStickyToolbar = false }) => {
   const [showMathPanel, setShowMathPanel] = useState(false);
   const [showTableMenu, setShowTableMenu] = useState(false);
   const [tableConfig, setTableConfig] = useState({ rows: 3, cols: 3 });
@@ -1268,6 +1269,10 @@ const RichEditor: React.FC<RichEditorProps> = ({ value, onChange, placeholder, s
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (disableStickyToolbar) {
+      setShowToolbar(true);
+      return;
+    }
     const handleScroll = (e: Event) => {
       if (!containerRef.current) return;
       
@@ -1319,7 +1324,7 @@ const RichEditor: React.FC<RichEditorProps> = ({ value, onChange, placeholder, s
       )}
       <div 
         ref={toolbarRef}
-        className={`flex flex-wrap items-center justify-between p-3 bg-white border-b border-gray-100 gap-3 no-print sticky ${stickyOffset} z-50 shadow-sm transition-transform duration-300 rounded-t-3xl ${showToolbar ? 'translate-y-0' : '-translate-y-full'}`}
+        className={`flex flex-wrap items-center justify-between p-3 bg-white border-b border-gray-100 gap-3 no-print sticky ${stickyOffset} z-50 shadow-sm transition-transform duration-300 rounded-t-3xl ${(!disableStickyToolbar && !showToolbar) ? '-translate-y-full' : 'translate-y-0'}`}
       >
         <div className="flex flex-wrap items-center gap-1">
           <div className="flex items-center gap-0.5 px-1 border-l border-gray-200 ml-1">
@@ -1462,7 +1467,7 @@ const RichEditor: React.FC<RichEditorProps> = ({ value, onChange, placeholder, s
           </div>
         </div>
       </div>
-      <div className="relative bg-white flex-1 min-h-[400px] rounded-b-3xl overflow-hidden"><EditorContent editor={editor} /></div>
+      <div className="relative bg-white flex-1 rounded-b-3xl overflow-hidden" style={{ minHeight }}><EditorContent editor={editor} /></div>
     </div>
   );
 };

@@ -317,8 +317,14 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+  });
+
   // Health check
   app.get("/api/health", (req, res) => {
+    console.log("GEMINI_API_KEY defined:", !!process.env.GEMINI_API_KEY);
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
@@ -381,6 +387,7 @@ async function startServer() {
   });
 
   app.get("/api/classrooms", async (req, res) => {
+    console.log("[DEBUG] API /api/classrooms called");
     const userId = req.query.userId as string;
     const code = req.query.code as string;
     
@@ -843,12 +850,12 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/history/:id", (req, res) => {
+  app.delete("/api/history/:id", async (req, res) => {
     try {
       db.prepare('DELETE FROM history WHERE id = ?').run(req.params.id);
       
       // Sync to Supabase
-      deleteFromSupabase('history', req.params.id);
+      await deleteFromSupabase('history', req.params.id);
 
       res.json({ status: "ok" });
     } catch (error: any) {
@@ -856,12 +863,12 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/history/user/:userId", (req, res) => {
+  app.delete("/api/history/user/:userId", async (req, res) => {
     try {
       db.prepare('DELETE FROM history WHERE user_id = ?').run(req.params.userId);
       
       // Sync to Supabase
-      deleteFromSupabase('history', req.params.userId, 'user_id');
+      await deleteFromSupabase('history', req.params.userId, 'user_id');
 
       res.json({ status: "ok" });
     } catch (error: any) {
@@ -1325,8 +1332,8 @@ async function startServer() {
                 <div style="background: #f9fafb; padding: 20px; border-radius: 15px; margin: 20px 0; border: 1px solid #e5e7eb;">
                   <h3 style="margin-top: 0;">מידע חשוב:</h3>
                   <ul style="padding-right: 20px;">
-                    <li><a href="${appUrl}/privacy">מדיניות הפרטיות שלנו</a></li>
-                    <li><a href="${appUrl}/terms">תנאי השימוש</a></li>
+                    <li><a href="${appUrl}/policies/privacy">מדיניות הפרטיות שלנו</a></li>
+                    <li><a href="${appUrl}/policies/terms">תנאי השימוש</a></li>
                   </ul>
                   <p style="font-size: 13px; color: #6b7280; margin-top: 20px;">
                     באפשרותכם לבטל את המנוי של ילדכם ולמחוק את כל המידע שנאסף עליו בכל עת על ידי לחיצה על הקישור הבא:
@@ -1452,7 +1459,7 @@ async function startServer() {
   });
 
   // Delete User and associated data
-  app.delete("/api/users/:id", (req, res) => {
+  app.delete("/api/users/:id", async (req, res) => {
     const id = req.params.id;
     try {
       const deleteClassrooms = db.prepare('DELETE FROM classrooms WHERE teacher_id = ?');
@@ -1471,6 +1478,14 @@ async function startServer() {
       });
       
       transaction();
+      
+      // Sync to Supabase
+      await deleteFromSupabase('users', id);
+      await deleteFromSupabase('classrooms', id, 'teacher_id');
+      await deleteFromSupabase('notifications', id, 'user_id');
+      await deleteFromSupabase('history', id, 'user_id');
+      await deleteFromSupabase('games', id, 'teacher_id');
+
       res.json({ status: "ok", message: "User and associated data deleted" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1520,7 +1535,7 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
     try {
       const vite = await createViteServer({
         server: { middlewareMode: true },

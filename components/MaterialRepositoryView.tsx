@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { HistoryItem, Subject } from '../types.ts';
-import { Trash2, FolderOpen, ArrowRight, ChevronLeft, FileText, ClipboardCheck, Sparkles, LayoutTemplate, Clock, Search, BookOpen, GraduationCap, Plus } from 'lucide-react';
+import { Trash2, FolderOpen, ArrowRight, ChevronLeft, FileText, ClipboardCheck, Sparkles, LayoutTemplate, Clock, Search, BookOpen, GraduationCap, Plus, MonitorPlay } from 'lucide-react';
 import LatexRenderer from './LatexRenderer.tsx';
 
 interface MaterialRepositoryViewProps {
@@ -53,6 +53,8 @@ const MaterialRepositoryView: React.FC<MaterialRepositoryViewProps> = ({ history
       case 'EXAM_CHECK': return <ClipboardCheck size={20} className="text-emerald-500" />;
       case 'SUMMARY': return <FileText size={20} className="text-blue-500" />;
       case 'PRACTICE': return <Sparkles size={20} className="text-purple-500" />;
+      case 'PRESENTATION': return <MonitorPlay size={20} className="text-indigo-500" />;
+      case 'INFOGRAPHIC': return <LayoutTemplate size={20} className="text-blue-500" />;
       default: return <BookOpen size={20} className="text-gray-400" />;
     }
   };
@@ -63,6 +65,8 @@ const MaterialRepositoryView: React.FC<MaterialRepositoryViewProps> = ({ history
       case 'EXAM_CHECK': return 'בדיקת מבחן';
       case 'SUMMARY': return 'סיכום לימודי';
       case 'PRACTICE': return 'תרגול כיתתי';
+      case 'PRESENTATION': return 'מצגת שיעור';
+      case 'INFOGRAPHIC': return 'אינפוגרפיקה';
       default: return 'חומר למידה';
     }
   };
