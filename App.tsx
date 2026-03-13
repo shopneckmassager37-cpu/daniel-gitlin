@@ -362,7 +362,6 @@ const MainContent: React.FC = () => {
   const [chatContext, setChatContext] = useState<string | null>(null);
   const [practiceConfig, setPracticeConfig] = useState<PracticeConfig | null>(null);
   const [testPrepInitialData, setTestPrepInitialData] = useState<{subject: Subject, grade: Grade, topic: string, days: number, attachment?: any} | null>(null);
-  const [summaryToOpen, setSummaryToOpen] = useState<{title: string, content: string} | null>(null);
 
   const [activeClassId, setActiveClassId] = useState<string | null>(null);
   const [initialMaterialId, setInitialMaterialId] = useState<string | null>(null);
@@ -377,6 +376,7 @@ const MainContent: React.FC = () => {
   const [initialTopic, setInitialTopic] = useState<string | null>(null);
   const [isGlobalEditorOpen, setIsGlobalEditorOpen] = useState(false);
   const [initialGlobalEditorData, setInitialGlobalEditorData] = useState<ClassroomMaterial | null>(null);
+  const [isMaterialFullscreen, setIsMaterialFullscreen] = useState(false);
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [stats, setStats] = useState<UserStats[]>([]);
@@ -816,7 +816,7 @@ const MainContent: React.FC = () => {
   };
   const handleAddSubject = (subjectName: string) => { if (!subjectName.trim() || userSubjects.includes(subjectName)) return; setUserSubjects([...userSubjects, subjectName]); };
 
-  const handleHomeClick = () => { navigate('/'); setActiveTab('practice'); setSelectedSubject(null); setPracticeConfig(null); setSummaryToOpen(null); setActiveClassId(null); setInitialMaterialId(null); setInitialStudentId(null); setInitialTeacherTab(undefined); setInitialLessonPlan(null); setInitialHistoryId(null); setInitialGlobalEditorData(null); setInitialClassroomCreateMode(false); };
+  const handleHomeClick = () => { navigate('/'); setActiveTab('practice'); setSelectedSubject(null); setPracticeConfig(null); setActiveClassId(null); setInitialMaterialId(null); setInitialStudentId(null); setInitialTeacherTab(undefined); setInitialLessonPlan(null); setInitialHistoryId(null); setInitialGlobalEditorData(null); setInitialClassroomCreateMode(false); };
   const handleHistoryClick = () => { navigate('/history'); };
   const handleClassroomClick = () => { navigate('/class'); setInitialClassroomCreateMode(false); };
   const handleLibraryClick = () => { if (isTeacher) navigate('/library'); };
@@ -837,7 +837,6 @@ const MainContent: React.FC = () => {
   };
 
   const handleBackFromGenericView = () => setViewMode(previousViewMode);
-  const isHeaderHidden = viewMode !== 'DASHBOARD' && viewMode !== 'GAMES';
   const handleAddHistoryItem = (item: HistoryItem) => {
     setHistory(prev => [item, ...prev]);
     if (user?.id) {
@@ -915,8 +914,6 @@ const MainContent: React.FC = () => {
       />
     );
   }
-
-  const [isMaterialFullscreen, setIsMaterialFullscreen] = useState(false);
 
   return (
     <div dir="rtl">
