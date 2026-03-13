@@ -148,6 +148,18 @@ const MainContent: React.FC = () => {
   const location = useLocation();
   const { classCode } = useParams();
   const [extraDataVersion, setExtraDataVersion] = useState(0);
+  const [showHebrewPopup, setShowHebrewPopup] = useState(false);
+
+  useEffect(() => {
+    const handleHebrewShortcut = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+        e.preventDefault();
+        setShowHebrewPopup(true);
+      }
+    };
+    window.addEventListener('keydown', handleHebrewShortcut);
+    return () => window.removeEventListener('keydown', handleHebrewShortcut);
+  }, []);
   const [schoolUser, setSchoolUser] = useState<User | null>(() => {
     const saved = safeGetItem('school_user_auth');
     return saved ? JSON.parse(saved) : null;
@@ -1029,6 +1041,30 @@ const MainContent: React.FC = () => {
       )}
 
       {/* Legal Modals */}
+
+      {/* Hebrew Language Popup */}
+      {showHebrewPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowHebrewPopup(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-5xl mb-4">🇮🇱</div>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">שפת האפליקציה</h2>
+            <p className="text-gray-600 text-lg font-medium">האפליקציה היא בעברית</p>
+            <button
+              onClick={() => setShowHebrewPopup(false)}
+              className="mt-6 px-6 py-2 bg-primary text-white rounded-xl font-bold hover:bg-blue-700 transition-all"
+            >
+              סגור
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
