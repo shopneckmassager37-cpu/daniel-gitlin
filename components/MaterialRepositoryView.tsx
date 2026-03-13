@@ -101,7 +101,7 @@ const MaterialRepositoryView: React.FC<MaterialRepositoryViewProps> = ({ history
            <div className="flex gap-2 w-full sm:w-auto">
              <select 
               value={selectedSubject}
-              onChange={e => setSelectedSubject(e.target.value as any)}
+              onChange={e => setSelectedSubject(e.target.value as Subject | 'ALL')}
               className="p-3 md:p-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-black text-gray-700 outline-none cursor-pointer flex-1 sm:w-40 text-sm"
              >
                <option value="ALL">כל המקצועות</option>

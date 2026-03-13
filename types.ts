@@ -71,6 +71,7 @@ export interface User {
   settings?: UserSettings;
   likedMaterialIds?: string[];
   viewedMaterialIds?: string[];
+  usedMaterialIds?: string[];
   learningProfile?: UserLearningProfile;
   subscriptionType?: 'Free' | 'Pro';
   aiRequestsToday?: number;

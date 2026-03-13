@@ -383,7 +383,7 @@ const MainContent: React.FC = () => {
   const DB_KEY = useMemo(() => user?.id ? `lumdim_global_database_${user.id}` : 'lumdim_global_database_v1', [user?.id]);
   const [allClassrooms, setAllClassrooms] = useState<Classroom[]>([]);
   
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const prevClassroomsRef = useRef<Classroom[]>([]);
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -529,7 +529,7 @@ const MainContent: React.FC = () => {
       
       // Sync new notifications to Supabase
       newNotifications.forEach(n => {
-        dbService.saveNotification(n as any).catch(err => console.error("Failed to save notification to Supabase:", err));
+        dbService.saveNotification(n).catch(err => console.error("Failed to save notification to Supabase:", err));
       });
     }
     prevClassroomsRef.current = allClassrooms;
@@ -567,7 +567,7 @@ const MainContent: React.FC = () => {
         }
 
         if (remoteNotifications.length > 0) {
-          setNotifications(remoteNotifications as any);
+          setNotifications(remoteNotifications);
           safeSetItem(`user_notifications_${user.id}`, JSON.stringify(remoteNotifications));
         } else {
           const savedNotifications = safeGetItem(`user_notifications_${user.id}`);
@@ -1196,12 +1196,14 @@ const AppContent: React.FC<AppContentProps> = ({
         
         // Add notification if not in test prep view
         if (viewMode !== 'PRACTICE' || activeTab !== 'test-prep') {
-          const newNotif: any = {
+          const newNotif: Notification = {
             id: Math.random().toString(36).substr(2, 9),
+            userId: user?.id ?? '',
             title: 'הכנה למבחן מוכנה!',
             message: `תוכנית ההכנה שלך בנושא "${topic}" מוכנה ללמידה.`,
             timestamp: Date.now(),
             type: 'SYSTEM',
+            isRead: false,
             read: false
           };
           setNotifications(prev => [newNotif, ...prev]);
@@ -1245,7 +1247,7 @@ const AppContent: React.FC<AppContentProps> = ({
           onLibraryClick={handleLibraryClick} onCoursesClick={handleCoursesClick} onLogout={handleLogout} onProfileClick={() => setIsProfileModalOpen(true)}
           selectedGrade={selectedGrade} onChangeGrade={handleChangeGrade} userName={userName} userPhoto={user?.photoUrl}
           userEmail={user?.email} userRole={user?.role} userSettings={user?.settings} unreadCount={notifications.filter(n => !n.isRead).length}
-          onUpgradeClick={handleUpgradeClick} subscriptionType={user?.subscriptionType as any}
+          onUpgradeClick={handleUpgradeClick} subscriptionType={user?.subscriptionType ?? 'Free'}
           schoolCode={user?.schoolCode}
         />
       )}

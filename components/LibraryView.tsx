@@ -118,9 +118,9 @@ const LibraryView: React.FC<LibraryViewProps> = ({ user, onBack, onAddHistoryIte
         details: item
     });
 
-    const usedIds = (user as any).usedMaterialIds || [];
+    const usedIds = user.usedMaterialIds || [];
     if (!usedIds.includes(item.id)) {
-        onUpdateUser({ ...user, usedMaterialIds: [...usedIds, item.id] } as any);
+        onUpdateUser({ ...user, usedMaterialIds: [...usedIds, item.id] });
         incrementMetric(item.id, 'usages');
     }
     
@@ -138,9 +138,9 @@ const LibraryView: React.FC<LibraryViewProps> = ({ user, onBack, onAddHistoryIte
     });
     localStorage.setItem(DB_KEY, JSON.stringify(updatedDb));
     
-    const usedIds = (user as any).usedMaterialIds || [];
+    const usedIds = user.usedMaterialIds || [];
     if (!usedIds.includes(activeItem.id)) {
-        onUpdateUser({ ...user, usedMaterialIds: [...usedIds, activeItem.id] } as any);
+        onUpdateUser({ ...user, usedMaterialIds: [...usedIds, activeItem.id] });
         incrementMetric(activeItem.id, 'usages');
     }
 
@@ -394,7 +394,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ user, onBack, onAddHistoryIte
                  </select>
                  <select 
                   value={selectedSubject} 
-                  onChange={e => setSelectedSubject(e.target.value as any)} 
+                  onChange={e => setSelectedSubject(e.target.value as Subject | 'ALL')}
                   className="p-4 bg-gray-50 rounded-2xl outline-none font-black text-gray-700 cursor-pointer min-w-[140px]"
                  >
                     <option value="ALL">כל המקצועות</option>
@@ -402,7 +402,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ user, onBack, onAddHistoryIte
                  </select>
                  <select 
                   value={selectedType} 
-                  onChange={e => setSelectedType(e.target.value as any)} 
+                  onChange={e => setSelectedType(e.target.value as MaterialType | 'ALL')}
                   className="p-4 bg-gray-50 rounded-2xl outline-none font-black text-gray-700 cursor-pointer min-w-[140px]"
                  >
                     <option value="ALL">כל הסוגים</option>

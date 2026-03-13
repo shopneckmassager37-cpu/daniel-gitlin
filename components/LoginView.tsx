@@ -98,9 +98,9 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, onSchoolLogin, onShowPri
     localStorage.setItem('pending_role', selectedRole);
 
 
-    const authOptions = {
+    const authOptions: Record<string, string> = {
       org_code: validatedSchool.code
-    } as any;
+    };
 
 
     if (type === 'login') {

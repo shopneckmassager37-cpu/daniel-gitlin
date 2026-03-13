@@ -530,7 +530,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user, isPro, histor
       console.log("Generating lesson plan for:", plannerTopic);
       const plan = await generateLessonPlan(
         plannerTopic, 
-        plannerGrade as any, 
+        plannerGrade,
         plannerInfo
       );
       console.log("Lesson plan generated:", plan);

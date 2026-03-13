@@ -221,7 +221,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
     if (initialClassId) setActiveClassId(initialClassId);
     if (initialStudentId) setViewingStudentId(initialStudentId);
     if (initialCreateMode) setIsCreating(true);
-    if (initialTab) setActiveTab(initialTab as any);
+    if (initialTab) setActiveTab(initialTab);
   }, [initialClassId, initialStudentId, initialCreateMode, initialTab]);
 
   useEffect(() => {
@@ -296,7 +296,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
           isRead: false,
           link: `CLASSROOM_CHAT:${activeClass.id}`,
           classId: activeClass.id
-        } as any);
+        });
       } catch (e) {
         console.error("Failed to send notification", e);
       }
@@ -460,7 +460,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
           timestamp: Date.now(),
           subject: activeClass.subject || '',
           grade: (activeClass.grade || Grade.GRADE_7) as Grade,
-          type: activeMaterial.type as any,
+          type: activeMaterial.type as 'SUMMARY' | 'UPCOMING_TEST' | 'GAME',
           title: activeMaterial.title,
           classId: activeClass.id
         });
@@ -681,7 +681,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                     classId: activeClass.id,
                     materialId: activeMaterial.id,
                     studentId: user.id
-                  } as any);
+                  });
                 } catch (e) {
                   console.error("Failed to send notification", e);
                 }
@@ -765,7 +765,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
             classId: activeClass.id,
             materialId: activeMaterial.id,
             studentId: user.id
-          } as any);
+          });
         } catch (e) {
           console.error("Failed to send notification", e);
         }
@@ -1668,7 +1668,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                                 </div>
                                             </div>
 
-                                            {isTestType && (userSubmission as any).detailedResults && (
+                                            {isTestType && userSubmission.detailedResults && (
                                                 <div className="space-y-8 text-right">
                                                     <div className="flex items-center gap-4 mb-8">
                                                         <div className="h-px flex-1 bg-gray-200"></div>
@@ -1678,7 +1678,7 @@ const ClassroomView: React.FC<ClassroomViewProps> = ({
                                                     
                                                     <div className="grid gap-8">
                                                         {activeMaterial.questions?.map((q, idx) => {
-                                                            const result = (userSubmission as any).detailedResults?.find((r: any) => r.questionId === q.id);
+                                                            const result = userSubmission.detailedResults?.find(r => r.questionId === q.id);
                                                             return (
                                                                 <div key={q.id} className={`p-8 rounded-[2.5rem] border-2 bg-white shadow-sm transition-all hover:shadow-md ${result?.isCorrect ? 'border-green-100' : 'border-red-100'}`}>
                                                                     <div className="flex items-start gap-4 mb-6">

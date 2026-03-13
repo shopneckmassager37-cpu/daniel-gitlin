@@ -1015,7 +1015,7 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                     ].map(t => (
                       <button 
                         key={t.id}
-                        onClick={() => setAiGenType(t.id as any)}
+                        onClick={() => setAiGenType(t.id as 'SUMMARY' | 'TEST' | 'ASSIGNMENT')}
                         className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${aiGenType === t.id ? 'border-primary bg-blue-50 text-primary' : 'border-gray-50 text-gray-400 hover:border-gray-100'}`}
                       >
                         <t.icon size={16} />

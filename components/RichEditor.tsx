@@ -1278,7 +1278,7 @@ const RichEditor: React.FC<RichEditorProps> = ({ value, onChange, placeholder, s
       
       const scrollTarget = e.target as HTMLElement;
       // Use documentElement.scrollTop if target is document, otherwise use scrollTop or window.scrollY
-      const currentScrollY = scrollTarget === document as any ? document.documentElement.scrollTop : (scrollTarget.scrollTop || window.scrollY);
+      const currentScrollY = (scrollTarget as EventTarget) === document ? document.documentElement.scrollTop : (scrollTarget.scrollTop || window.scrollY);
       
       const isScrollingUp = currentScrollY < lastScrollY.current;
       const scrollDiff = Math.abs(currentScrollY - lastScrollY.current);
