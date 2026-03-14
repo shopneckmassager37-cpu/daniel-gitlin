@@ -382,15 +382,34 @@ const SortableBlock = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between mb-6 p-3 bg-white rounded-xl border border-green-200">
-              <span className="font-bold text-green-800 text-xs">שיטת ניקוד:</span>
-              <select className="p-1 rounded-lg border border-gray-200 font-bold text-xs" value={draftMaterial.scoringMethod || 'FINAL'} onChange={(e) => {
-                const value = e.target.value as 'FINAL' | 'PER_QUESTION';
-                setDraftMaterial(prev => ({...prev, scoringMethod: value}));
-              }}>
-                <option value="FINAL">ציון בסוף</option>
-                <option value="PER_QUESTION">נכון/לא נכון אחרי כל שאלה</option>
-              </select>
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-green-200">
+                <span className="font-bold text-green-800 text-xs">שיטת ניקוד:</span>
+                <select className="p-1 rounded-lg border border-gray-200 font-bold text-xs" value={draftMaterial.scoringMethod || 'FINAL'} onChange={(e) => {
+                  const value = e.target.value as 'FINAL' | 'PER_QUESTION';
+                  setDraftMaterial(prev => ({...prev, scoringMethod: value}));
+                }}>
+                  <option value="FINAL">ציון בסוף</option>
+                  <option value="PER_QUESTION">נכון/לא נכון אחרי כל שאלה</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-green-200">
+                <span className="font-bold text-green-800 text-xs flex items-center gap-1"><Bot size={12}/> בדיקת עבודות תלמידים:</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: true}))}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI !== false ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                  >
+                    <Bot size={10}/> AI
+                  </button>
+                  <button
+                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: false}))}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI === false ? 'bg-gray-700 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                  >
+                    <GraduationCap size={10}/> ידנית
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-6">
@@ -463,18 +482,39 @@ const SortableBlock = ({
             </div>
           </div>
         ) : (
-          <RichEditor 
-            value={block.content || ''} 
-            onChange={content => {
-              const newPages = [...(draftMaterial.pages || [])];
-              newPages[activePageIndex].blocks[bIndex] = { ...newPages[activePageIndex].blocks[bIndex], content };
-              setDraftMaterial((prev: any) => ({...prev, pages: newPages}));
-            }} 
-            placeholder={block.type === 'ASSIGNMENT' ? "כתוב כאן את הוראות המטלה והמשימות לתלמידים..." : "כתוב כאן את תוכן התוכן שיוצג לתלמידים..."} 
-            showGuide={true}
-            subject={currentContextSubject}
-            stickyOffset="top-0"
-          />
+          <div>
+            {draftMaterial.type === 'ASSIGNMENT' && (
+              <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-200 mb-4">
+                <span className="font-bold text-emerald-800 text-xs flex items-center gap-1"><Bot size={12}/> בדיקת עבודות תלמידים:</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: true}))}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI !== false ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                  >
+                    <Bot size={10}/> AI
+                  </button>
+                  <button
+                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: false}))}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI === false ? 'bg-gray-700 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                  >
+                    <GraduationCap size={10}/> ידנית
+                  </button>
+                </div>
+              </div>
+            )}
+            <RichEditor
+              value={block.content || ''}
+              onChange={content => {
+                const newPages = [...(draftMaterial.pages || [])];
+                newPages[activePageIndex].blocks[bIndex] = { ...newPages[activePageIndex].blocks[bIndex], content };
+                setDraftMaterial((prev: any) => ({...prev, pages: newPages}));
+              }}
+              placeholder={draftMaterial.type === 'ASSIGNMENT' ? "כתוב כאן את הוראות המטלה והמשימות לתלמידים..." : "כתוב כאן את תוכן התוכן שיוצג לתלמידים..."}
+              showGuide={true}
+              subject={currentContextSubject}
+              stickyOffset="top-0"
+            />
+          </div>
         )}
       </div>
       {isAdvancedMode && (

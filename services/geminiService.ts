@@ -115,9 +115,15 @@ const cleanJSON = (text: string) => {
   if (!text) return "";
   // Remove markdown code blocks
   let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-  // Sometimes Gemini adds text before or after the JSON, try to find the first { and last }
+  const firstBracket = cleaned.indexOf('[');
+  const lastBracket = cleaned.lastIndexOf(']');
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
+  // If it looks like an array ([ appears before {), extract the array
+  if (firstBracket !== -1 && lastBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+    return cleaned.substring(firstBracket, lastBracket + 1);
+  }
+  // Otherwise extract as an object
   if (firstBrace !== -1 && lastBrace !== -1) {
     cleaned = cleaned.substring(firstBrace, lastBrace + 1);
   }
