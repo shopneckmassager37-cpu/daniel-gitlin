@@ -948,7 +948,7 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                     setDraftMaterial(prev => {
                       const newState = { ...prev, type: newType, dueDate: newDueDate };
                       let blockType: any = 'TEXT';
-                      if (newType === 'TEST' || newType === 'ASSIGNMENT') blockType = 'TEST';
+                      if (newType === 'TEST') blockType = 'TEST';
                       if (newType === 'UPLOADED_FILE') blockType = 'FILE';
                       if (newType === 'GAME') blockType = 'GAME';
                       if (newType === 'UPCOMING_TEST') blockType = 'UPCOMING_TEST';
@@ -1068,17 +1068,22 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                   className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-xs font-medium outline-none focus:border-primary transition-all resize-none h-24 mb-4"
                 />
 
-                <button 
+                <button
                  onClick={async () => {
                    if (!draftMaterial.title) return;
-                   
-                   // Get current block context
-                   const activePage = draftMaterial.pages?.[activePageIndexForBlock];
-                   const activeBlock = activePage?.blocks?.[activeBlockIndex ?? 0];
-                   
-                   if (!activeBlock) {
-                     alert("אנא בחר בלוק תוכן כדי לייצר תוכן.");
-                     return;
+
+                   // Get current block context using activePageIndex (the page the user is viewing)
+                   const currentPageIndex = activePageIndex;
+                   const currentBlockIndex = activeBlockIndex ?? 0;
+                   const activePage = draftMaterial.pages?.[currentPageIndex];
+                   const activeBlock = activePage?.blocks?.[currentBlockIndex];
+
+                   // Ensure pages exist with at least one block
+                   if (!draftMaterial.pages || draftMaterial.pages.length === 0) {
+                     setDraftMaterial(prev => ({
+                       ...prev,
+                       pages: [{ id: `page-${Date.now()}`, blocks: [{ id: `block-${Date.now()}`, type: 'TEXT', content: '' }] }]
+                     }));
                    }
 
                    // Check AI limit
@@ -1090,8 +1095,8 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                    setLoading(true);
                    try {
                      const detectedSub = currentContextSubject || await detectSubjectAI(draftMaterial.title);
-                     const detectedGrade = currentContextGrade || await detectGradeAI(draftMaterial.title, activeBlock.content || '');
-                     
+                     const detectedGrade = currentContextGrade || await detectGradeAI(draftMaterial.title, activeBlock?.content || '');
+
                      const result = await generateTeacherMaterial(
                        detectedSub,
                        detectedGrade,
@@ -1100,38 +1105,41 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                        userGenerationPrompt,
                        aiGenType === 'TEST' ? { mcqCount: aiMcqCount, openCount: aiOpenCount } : undefined
                      );
-                     
-                     // Update block content or add new block
-                     const newPages = [...(draftMaterial.pages || [])];
-                     if (newPages.length === 0) {
-                       newPages.push({ id: `page-${Date.now()}`, blocks: [] });
-                     }
-                     
-                     const targetBlockType = aiGenType === 'TEST' ? 'TEST' : (aiGenType === 'ASSIGNMENT' ? 'TEST' : 'TEXT');
-                     
-                     // If active block is empty or same type, update it. Otherwise add new.
-                     let blockToUpdate = newPages[activePageIndexForBlock]?.blocks[activeBlockIndex ?? 0];
-                     if (!blockToUpdate || (blockToUpdate.content === '' && (blockToUpdate.questions?.length || 0) === 0)) {
-                       if (!blockToUpdate) {
-                         blockToUpdate = { id: `block-${Date.now()}`, type: targetBlockType, content: '' };
-                         newPages[activePageIndexForBlock].blocks.push(blockToUpdate);
-                       } else {
-                         blockToUpdate.type = targetBlockType;
-                       }
-                     } else {
-                       // Add new block
-                       blockToUpdate = { id: `block-${Date.now()}`, type: targetBlockType, content: '' };
-                       newPages[activePageIndexForBlock].blocks.push(blockToUpdate);
-                     }
 
-                     if (result.content) {
-                       blockToUpdate.content = result.content;
-                     }
-                     if (result.questions) {
-                       blockToUpdate.questions = [...(blockToUpdate.questions || []), ...result.questions!];
-                     }
-                     setDraftMaterial(prev => ({...prev, pages: newPages}));
-                     
+                     // TEST generates questions; SUMMARY/ASSIGNMENT generate text content
+                     const targetBlockType: any = aiGenType === 'TEST' ? 'TEST' : 'TEXT';
+
+                     setDraftMaterial(prev => {
+                       // Build updated pages immutably
+                       let pages = prev.pages && prev.pages.length > 0
+                         ? prev.pages
+                         : [{ id: `page-${Date.now()}`, blocks: [{ id: `block-${Date.now()}`, type: targetBlockType, content: '' }] }];
+
+                       const pageIndex = Math.min(currentPageIndex, pages.length - 1);
+                       const blockIndex = currentBlockIndex;
+                       const existingBlock = pages[pageIndex]?.blocks?.[blockIndex];
+                       const isBlockEmpty = !existingBlock || (existingBlock.content === '' && !(existingBlock.questions?.length));
+
+                       const newBlock = isBlockEmpty && existingBlock
+                         ? { ...existingBlock, type: targetBlockType, content: result.content || existingBlock.content }
+                         : { id: `block-${Date.now()}`, type: targetBlockType, content: result.content || '' };
+
+                       const newPages = pages.map((p, pi) => {
+                         if (pi !== pageIndex) return p;
+                         const newBlocks = isBlockEmpty && existingBlock
+                           ? p.blocks.map((b, bi) => bi === blockIndex ? newBlock : b)
+                           : [...p.blocks, newBlock];
+                         return { ...p, blocks: newBlocks };
+                       });
+
+                       // For TEST type: questions go to draftMaterial.questions (top-level) so the TEST block renders them
+                       const newQuestions = result.questions
+                         ? [...(prev.questions || []), ...result.questions]
+                         : prev.questions;
+
+                       return { ...prev, pages: newPages, questions: newQuestions };
+                     });
+
                    } catch (e) {
                      console.error(e);
                      alert("שגיאה בייצור תוכן.");
