@@ -382,34 +382,15 @@ const SortableBlock = ({
               </div>
             </div>
 
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-green-200">
-                <span className="font-bold text-green-800 text-xs">שיטת ניקוד:</span>
-                <select className="p-1 rounded-lg border border-gray-200 font-bold text-xs" value={draftMaterial.scoringMethod || 'FINAL'} onChange={(e) => {
-                  const value = e.target.value as 'FINAL' | 'PER_QUESTION';
-                  setDraftMaterial(prev => ({...prev, scoringMethod: value}));
-                }}>
-                  <option value="FINAL">ציון בסוף</option>
-                  <option value="PER_QUESTION">נכון/לא נכון אחרי כל שאלה</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-green-200">
-                <span className="font-bold text-green-800 text-xs flex items-center gap-1"><Bot size={12}/> בדיקת עבודות תלמידים:</span>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: true}))}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI !== false ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                  >
-                    <Bot size={10}/> AI
-                  </button>
-                  <button
-                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: false}))}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI === false ? 'bg-gray-700 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                  >
-                    <GraduationCap size={10}/> ידנית
-                  </button>
-                </div>
-              </div>
+            <div className="flex items-center justify-between mb-6 p-3 bg-white rounded-xl border border-green-200">
+              <span className="font-bold text-green-800 text-xs">שיטת ניקוד:</span>
+              <select className="p-1 rounded-lg border border-gray-200 font-bold text-xs" value={draftMaterial.scoringMethod || 'FINAL'} onChange={(e) => {
+                const value = e.target.value as 'FINAL' | 'PER_QUESTION';
+                setDraftMaterial(prev => ({...prev, scoringMethod: value}));
+              }}>
+                <option value="FINAL">ציון בסוף</option>
+                <option value="PER_QUESTION">נכון/לא נכון אחרי כל שאלה</option>
+              </select>
             </div>
 
             <div className="space-y-6">
@@ -430,24 +411,20 @@ const SortableBlock = ({
                     </div>
                     {q.type === 'OPEN' ? (
                       <div className="space-y-4">
-                         {draftMaterial.autoGradeByAI && (
-                           <ExpandableField 
-                            label="תשובת מודל"
-                            value={q.modelAnswer || ''} 
-                            onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].modelAnswer = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} 
-                            isTextarea
-                            subject={currentContextSubject}
-                          />
-                         )}
-                         {!draftMaterial.autoGradeByAI && (
-                           <ExpandableField 
-                            label="הסבר פתרון (אופציונלי)"
-                            value={q.explanation || ''} 
-                            onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].explanation = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }} 
-                            isTextarea
-                            subject={currentContextSubject}
-                          />
-                         )}
+                        <ExpandableField
+                          label="תשובת מודל"
+                          value={q.modelAnswer || ''}
+                          onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].modelAnswer = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }}
+                          isTextarea
+                          subject={currentContextSubject}
+                        />
+                        <ExpandableField
+                          label="הסבר פתרון (אופציונלי)"
+                          value={q.explanation || ''}
+                          onChange={text => { const newQs = [...draftMaterial.questions!]; newQs[i].explanation = text; setDraftMaterial((prev: any) => ({...prev, questions: newQs})); }}
+                          isTextarea
+                          subject={currentContextSubject}
+                        />
                       </div>
                     ) : (
                       <div className="space-y-6">
@@ -482,39 +459,18 @@ const SortableBlock = ({
             </div>
           </div>
         ) : (
-          <div>
-            {draftMaterial.type === 'ASSIGNMENT' && (
-              <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-200 mb-4">
-                <span className="font-bold text-emerald-800 text-xs flex items-center gap-1"><Bot size={12}/> בדיקת עבודות תלמידים:</span>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: true}))}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI !== false ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                  >
-                    <Bot size={10}/> AI
-                  </button>
-                  <button
-                    onClick={() => setDraftMaterial((prev: any) => ({...prev, autoGradeByAI: false}))}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${draftMaterial.autoGradeByAI === false ? 'bg-gray-700 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                  >
-                    <GraduationCap size={10}/> ידנית
-                  </button>
-                </div>
-              </div>
-            )}
-            <RichEditor
-              value={block.content || ''}
-              onChange={content => {
-                const newPages = [...(draftMaterial.pages || [])];
-                newPages[activePageIndex].blocks[bIndex] = { ...newPages[activePageIndex].blocks[bIndex], content };
-                setDraftMaterial((prev: any) => ({...prev, pages: newPages}));
-              }}
-              placeholder={draftMaterial.type === 'ASSIGNMENT' ? "כתוב כאן את הוראות המטלה והמשימות לתלמידים..." : "כתוב כאן את תוכן התוכן שיוצג לתלמידים..."}
-              showGuide={true}
-              subject={currentContextSubject}
-              stickyOffset="top-0"
-            />
-          </div>
+          <RichEditor
+            value={block.content || ''}
+            onChange={content => {
+              const newPages = [...(draftMaterial.pages || [])];
+              newPages[activePageIndex].blocks[bIndex] = { ...newPages[activePageIndex].blocks[bIndex], content };
+              setDraftMaterial((prev: any) => ({...prev, pages: newPages}));
+            }}
+            placeholder={draftMaterial.type === 'ASSIGNMENT' ? "כתוב כאן את הוראות המטלה והמשימות לתלמידים..." : "כתוב כאן את תוכן התוכן שיוצג לתלמידים..."}
+            showGuide={true}
+            subject={currentContextSubject}
+            stickyOffset="top-0"
+          />
         )}
       </div>
       {isAdvancedMode && (
@@ -1077,6 +1033,28 @@ const GlobalContentEditor: React.FC<GlobalContentEditorProps> = ({
                         <span className="text-[10px] font-black text-gray-400 block mb-1">פתוחות</span>
                         <input type="number" min="0" max="10" value={aiOpenCount} onChange={(e) => setAiOpenCount(parseInt(e.target.value) || 0)} className="w-full bg-transparent font-black text-lg text-purple-600 outline-none text-center" />
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {(aiGenType === 'TEST' || aiGenType === 'ASSIGNMENT') && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pr-2 flex items-center gap-2"><Bot size={12}/> בדיקת עבודות תלמידים</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setDraftMaterial(prev => ({...prev, autoGradeByAI: true}))}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${draftMaterial.autoGradeByAI !== false ? 'border-primary bg-blue-50 text-primary' : 'border-gray-50 text-gray-400 hover:border-gray-100'}`}
+                      >
+                        <Bot size={16} />
+                        <span className="text-[8px] font-black">בדיקת AI</span>
+                      </button>
+                      <button
+                        onClick={() => setDraftMaterial(prev => ({...prev, autoGradeByAI: false}))}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${draftMaterial.autoGradeByAI === false ? 'border-gray-700 bg-gray-100 text-gray-700' : 'border-gray-50 text-gray-400 hover:border-gray-100'}`}
+                      >
+                        <GraduationCap size={16} />
+                        <span className="text-[8px] font-black">בדיקה ידנית</span>
+                      </button>
                     </div>
                   </div>
                 )}
