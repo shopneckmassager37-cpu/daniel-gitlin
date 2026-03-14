@@ -269,24 +269,29 @@ export const generateSummary = async (
 };
 
 export const generateAssignment = async (subject: Subject | string, grade: Grade, topic: string, customPrompt?: string, learningProfile?: UserLearningProfile): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = getAiInstance();
     const profileContext = learningProfile ? `\nפרופיל למידה אישי:
     - חוזקות: ${learningProfile.strengths.join(', ')}
     - חולשות: ${learningProfile.weaknesses.join(', ')}
     התאם את המטלה כך שתחזק את החולשות ותשתמש בחוזקות.` : '';
 
-    const prompt = `צור מטלה להגשה על "${topic}" עבור ${grade}. 
+    const prompt = `צור מטלה להגשה על "${topic}" עבור ${grade}.
     שלב במידת הצורך טבלאות לנתונים או שרטוטים (geometry-node/analytic-geometry-node) להמחשת בעיות במתמטיקה.
     ${profileContext}
     ${customPrompt ? `דגשים למטלה: ${customPrompt}` : ''}
     בצע את המשימה במהירות המקסימלית (עד 15 שניות).`;
-    
-    const response = await callGemini<GenerateContentResponse>(() => ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: { systemInstruction: getConditionalInstruction(subject) }
-    }));
-    return response.text || "";
+
+    return await callGemini<string>(async () => {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: prompt,
+        config: {
+          systemInstruction: getConditionalInstruction(subject),
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+        }
+      });
+      return response.text || "";
+    });
 };
 
 export const generateQuestions = async (
